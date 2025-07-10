@@ -12,6 +12,7 @@ import os
 class DomynSwarm(opencompass.models.base_api.BaseAPIModel):
     def __init__(
         self,
+        state_path: str,
         system_prompt: str | None = None,
         temperature: float = 0.0,
         extra_body: typing.Optional[typing.Dict[str, typing.Any]] = dict(),
@@ -19,7 +20,7 @@ class DomynSwarm(opencompass.models.base_api.BaseAPIModel):
     ):
         super().__init__(path="")
         self.system_prompt = system_prompt
-        self.state_path = pathlib.Path(os.environ["SWARM_STATE"])
+        self.state_path = pathlib.Path(state_path)
         self.temperature = temperature
         self.extra_body = extra_body
 
