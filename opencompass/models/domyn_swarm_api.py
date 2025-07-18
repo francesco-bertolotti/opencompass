@@ -45,7 +45,7 @@ class DomynSwarm(opencompass.models.base_api.BaseAPIModel):
         @tenacity.retry(
             wait=tenacity.wait_exponential(multiplier=1, min=1, max=60),
             stop=tenacity.stop_after_attempt(5),
-            retry=tenacity.retry_if_exception_type(openai.APITimeoutError),
+            retry=tenacity.retry_if_exception_type((openai.APITimeoutError, openai.InternalServerError)),
             reraise=True,
             before_sleep=lambda retry_state: print(f"Retrying due to timeout, attempt {retry_state.attempt_number}..."),
         )
