@@ -1,4 +1,5 @@
 import opencompass
+import traceback
 import tenacity
 import asyncio
 import pathlib
@@ -34,6 +35,7 @@ class DomynSwarm(opencompass.models.base_api.BaseAPIModel):
             timeout=timeout,
         )
 
+
     def generate(self, prompts : typing.List[typing.Union[opencompass.utils.prompt.PromptList, str]], max_out_len: int = 512):
         return asyncio.run(self._generate(prompts, max_out_len))
 
@@ -47,14 +49,18 @@ class DomynSwarm(opencompass.models.base_api.BaseAPIModel):
             before_sleep=lambda retry_state: print(f"Retrying due to timeout, attempt {retry_state.attempt_number}..."),
         )
         async def complete(messages) -> list[str]:
-            resp = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=self.temperature,
-                extra_body=self.extra_body,
-                max_tokens=max_out_len,
-            )
-            return resp.choices[0].message.content
+            """ Asynchronously complete the prompt using the OpenAI API. """
+            try:
+                resp = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    temperature=self.temperature,
+                    extra_body=self.extra_body,
+                )
+                return resp.choices[0].message.content
+            except openai.BadRequestError as e:
+                traceback.print_exc()
+                return ""
 
         return await asyncio.gather(*[complete(self.format(prompt)) for prompt in prompts])
 
