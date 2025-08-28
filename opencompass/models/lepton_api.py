@@ -55,6 +55,7 @@ class Lepton(opencompass.models.base_api.BaseAPIModel):
                     messages=messages,
                     temperature=self.temperature,
                     extra_body=self.extra_body,
+                    stop_tokens_ids = self.stop_tokens_ids,
 
                 )
                 return resp.choices[0].message.content
