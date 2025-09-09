@@ -13,7 +13,6 @@ class Lepton(opencompass.models.base_api.BaseAPIModel):
         endpoint: str,
         system_prompt: str | None = None,
         temperature: float = 0.0,
-        stop_tokens_ids: typing.Optional[typing.List[int]] = None,
         extra_body: typing.Optional[typing.Dict[str, typing.Any]] = dict(),
         api_key: typing.Optional[str] = None,
         timeout: int = 1200,
@@ -23,7 +22,6 @@ class Lepton(opencompass.models.base_api.BaseAPIModel):
         self.endpoint = endpoint
         self.temperature = temperature
         self.extra_body = extra_body
-        self.stop_tokens_ids = stop_tokens_ids
 
         self.endpoint = endpoint
         self.model = model
@@ -55,8 +53,6 @@ class Lepton(opencompass.models.base_api.BaseAPIModel):
                     messages=messages,
                     temperature=self.temperature,
                     extra_body=self.extra_body,
-                    stop_tokens_ids = self.stop_tokens_ids,
-
                 )
                 return resp.choices[0].message.content
             except openai.BadRequestError as e:
