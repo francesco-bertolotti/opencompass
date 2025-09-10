@@ -35,6 +35,7 @@ from .cmmlu import *  # noqa: F401, F403
 from .cmnli import *  # noqa: F401, F403
 from .cmo_fib import *  # noqa: F401, F403
 from .cmrc import *  # noqa: F401, F403
+from .codecompass import *  # noqa: F401, F403
 from .commonsenseqa import *  # noqa: F401, F403
 from .commonsenseqa_cn import *  # noqa: F401, F403
 from .copa import *  # noqa: F401, F403
@@ -50,6 +51,7 @@ from .drop_simple_eval import *  # noqa: F401, F403
 from .ds1000 import *  # noqa: F401, F403
 from .ds1000_interpreter import *  # noqa: F401, F403
 from .Earth_Silver import *  # noqa: F401, F403
+from .eese.eese import *  # noqa: F401, F403
 from .eprstmt import *  # noqa: F401, F403
 from .FinanceIQ import *  # noqa: F401, F403
 from .flores import *  # noqa: F401, F403
@@ -145,6 +147,7 @@ from .scibench import ScibenchDataset, scibench_postprocess  # noqa: F401, F403
 from .scicode import *  # noqa: F401, F403
 from .SciEval import SciEvalDataset  # noqa: F401
 from .SciKnowEval import *  # noqa: F401, F403
+from .SeedBench import *  # noqa: F401, F403
 from .simpleqa import *  # noqa: F401, F403
 from .siqa import *  # noqa: F401, F403
 from .smolinstruct import *  # noqa: F401, F403
