@@ -6,7 +6,11 @@ import typing
 import openai
 import os
 
-class Lepton(opencompass.models.base_api.BaseAPIModel):
+from opencompass.registry import MODELS
+from .base_api import BaseAPIModel
+
+@MODELS.register_module()
+class Lepton(BaseAPIModel):
     def __init__(
         self,
         model: str,
@@ -39,8 +43,8 @@ class Lepton(opencompass.models.base_api.BaseAPIModel):
     async def _generate(self, prompts : typing.List[typing.Union[opencompass.utils.prompt.PromptList, str]], max_out_len: int = 512) -> list[str]:
 
         @tenacity.retry(
-            wait=tenacity.wait_exponential(multiplier=1, min=1, max=600),
-            stop=tenacity.stop_after_attempt(5),
+            wait=tenacity.wait_exponential(multiplier=1, min=60, max=60),
+            stop=tenacity.stop_after_attempt(180),
             retry=tenacity.retry_if_exception_type((openai.APITimeoutError, openai.InternalServerError)),
             reraise=True,
             before_sleep=lambda retry_state: print(f"Retrying due to timeout, attempt {retry_state.attempt_number}..."),
