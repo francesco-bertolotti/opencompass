@@ -504,6 +504,31 @@ DATASETS_MAPPING = {
         "hf_id": "",
         "local": "./data/phybench",
     },
+    "opencompass/grams_it": {
+        "ms_id": "",
+        "hf_id": "",
+        "local": "grams/data/qa_it.jsonl",
+    },
+    "opencompass/grams_fr": {
+        "ms_id": "",
+        "hf_id": "",
+        "local": "grams/data/qa_fr.jsonl",
+    },
+    "opencompass/grams_es": {
+        "ms_id": "",
+        "hf_id": "",
+        "local": "grams/data/qa_es.jsonl",
+    },
+    "opencompass/grams_de": {
+        "ms_id": "",
+        "hf_id": "",
+        "local": "grams/data/qa_de.jsonl",
+    },
+    "opencompass/grams_pt": {
+        "ms_id": "",
+        "hf_id": "",
+        "local": "grams/data/qa_pt.jsonl",
+    },
 }
 
 DATASETS_URL = {
