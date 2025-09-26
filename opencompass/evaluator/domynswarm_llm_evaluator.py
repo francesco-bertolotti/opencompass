@@ -199,13 +199,13 @@ class DomynSwarmLLMEvaluator(BaseEvaluator):
         DEFAULT_JUDGE_CFG = dict(
             type="opencompass.models.domyn_swarm_api.DomynSwarm",
             abbr=os.environ.get("MODEL_ABBR", "domyn-swarm-judge"),
-            batch_size=int(os.environ.get("BATCH_SIZE", 128)),
-            system_prompt="thinking on",
+            batch_size=int(os.environ.get("JUDGE_BATCH_SIZE", 128)),
+            #system_prompt="thinking on",
             state_path=os.environ.get("JUDGE_SWARM_STATE", None),
             temperature=0.5,
             extra_body=dict(
                 top_p=0.9,
-                top_k=25,
+                top_k=50,
                 min_p=0.1,
                 presence_penalty=0.0,
             ),
