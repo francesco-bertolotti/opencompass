@@ -36,21 +36,11 @@ class DefaultSummarizerGrams(DefaultSummarizer):
         raw_results, parsed_results, dataset_metrics, dataset_eval_mode = \
             self._calculate_group_metrics(raw_results, parsed_results, dataset_metrics, dataset_eval_mode)
 
-        print("Final parsed results:", parsed_results)
-        print("Final dataset metrics:", dataset_metrics)
-        print("Final dataset eval modes:", dataset_eval_mode)
-        print("Final raw results:", raw_results)
-        print(self.dataset_abbrs)
-
         # format table
         table = self._format_table(parsed_results, dataset_metrics, dataset_eval_mode)
 
-        print("Final table:", table)
-
         # format raw txt
         raw_txts = self._format_raw_txt(raw_results)
-
-        print("Final raw texts:", raw_txts)
 
         # output to screen
         print(tabulate.tabulate(table, headers='firstrow', floatfmt='.2f'))

@@ -156,10 +156,12 @@ class DomynSwarmLLMEvaluator(BaseEvaluator):
             )
 
         dataset.reader.output_column = 'reference'
+
         retriever = ZeroRetriever(dataset)
         # ----------------- LLM Judge ----------------
         self.inferencer.inference(retriever=retriever,
                                   prompt_template=self.prompt_template)
+
 
         output = mmengine.load(self.output_path)
         return self.output_postprocess(output, dataset)
@@ -202,12 +204,14 @@ class DomynSwarmLLMEvaluator(BaseEvaluator):
             batch_size=int(os.environ.get("JUDGE_BATCH_SIZE", 128)),
             #system_prompt="thinking on",
             state_path=os.environ.get("JUDGE_SWARM_STATE", None),
-            temperature=0.5,
+            temperature=0.6,
             extra_body=dict(
-                top_p=0.9,
-                top_k=50,
+                top_p=0.95,
+                top_k=20,
                 min_p=0.1,
                 presence_penalty=0.0,
+                #max_tokens=8192,
+                #chat_template_kwargs=dict(enable_thinking=True) # Qwen 3 Specific
             ),
             timeout=int(os.environ.get("TIMEOUT", 3200)),
         )

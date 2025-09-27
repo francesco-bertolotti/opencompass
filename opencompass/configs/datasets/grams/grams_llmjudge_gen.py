@@ -73,13 +73,13 @@ Grammar (1–5)
 
 5 = Perfect, native-like, no errors, no anglicisms.
 
-4 = Few minor slips, still natural, errors do not hinder understanding.
+4 = Few slips, errors are irrelevant and do not hinder understanding.
 
-3 = Several errors or awkward anglicisms, but understandable.
+3 = Noticeable, some errors or awkward anglicisms, but understandable.
 
-2 = Frequent mistakes or heavy English influence, readability suffers.
+2 = Frequent mistakes, visible English influence; readability suffers.
 
-1 = Severe grammatical problems; difficult to understand.
+1 = Severe, major grammatical problems; difficult to understand.
 
 Creativity (1–5)
 

@@ -10,6 +10,10 @@ import json
 from opencompass.registry import MODELS
 from .base_api import BaseAPIModel
 
+from ..utils.logging import get_logger
+logger = get_logger(__name__)
+
+
 @MODELS.register_module()
 class DomynSwarm(BaseAPIModel):
     def __init__(
@@ -55,12 +59,15 @@ class DomynSwarm(BaseAPIModel):
         async def complete(messages) -> list[str]:
             """ Asynchronously complete the prompt using the OpenAI API. """
             try:
+                #logger.info(f"Sending request to OpenAI API with messages: {messages}")
+                #logger.info(f"Using model: {self.extra_body}")
                 resp = await self.client.chat.completions.create(
                     model=self.model,
                     messages=messages,
                     temperature=self.temperature,
                     extra_body=self.extra_body,
                 )
+                #logger.info(f"Received response: {resp}")
                 return resp.choices[0].message.content
             except openai.BadRequestError as e:
                 traceback.print_exc()
