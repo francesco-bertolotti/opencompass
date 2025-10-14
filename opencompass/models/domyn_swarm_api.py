@@ -2,10 +2,9 @@ import opencompass
 import traceback
 import tenacity
 import asyncio
-import pathlib
 import typing
 import openai
-import json
+from domyn_swarm import DomynLLMSwarm
 
 from opencompass.registry import MODELS
 from .base_api import BaseAPIModel
@@ -18,7 +17,7 @@ logger = get_logger(__name__)
 class DomynSwarm(BaseAPIModel):
     def __init__(
         self,
-        state_path: str,
+        swarm_name: str,
         system_prompt: str | None = None,
         temperature: float = 0.0,
         extra_body: typing.Optional[typing.Dict[str, typing.Any]] = dict(),
@@ -26,15 +25,19 @@ class DomynSwarm(BaseAPIModel):
     ):
         super().__init__(path="")
         self.system_prompt = system_prompt
-        self.state_path = pathlib.Path(state_path)
+        self.swarm_name = swarm_name
         self.temperature = temperature
         self.extra_body = extra_body
 
-        assert self.state_path.exists(), f"State file {self.state_path} does not exist. Please set SWARM_STATE environment variable to the path of the state file."
+        # assert self.swarm_name.exists(), f"Swarm {self.swarm_name} does not exist. Please set SWARM_NAME environment variable to the path of the state file."
+        # self.swarm_name = json.load(self.swarm_name.open("r", encoding="utf-8"))
+        # self.endpoint = self.swarm_name["endpoint"]
+        # self.model = self.swarm_name["model"]
 
-        self.swarm_state = json.load(self.state_path.open("r", encoding="utf-8"))
-        self.endpoint = self.swarm_state["endpoint"]
-        self.model = self.swarm_state["model"]
+        swarm = DomynLLMSwarm.from_state(self.swarm_name)
+        self.endpoint = swarm.endpoint
+        self.model = swarm.model
+
         self.client = openai.AsyncOpenAI(
             base_url=f"{self.endpoint}/v1",
             api_key="-",
@@ -69,7 +72,7 @@ class DomynSwarm(BaseAPIModel):
                 )
                 #logger.info(f"Received response: {resp}")
                 return resp.choices[0].message.content
-            except openai.BadRequestError as e:
+            except openai.BadRequestError:
                 traceback.print_exc()
                 return ""
 
