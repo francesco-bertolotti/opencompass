@@ -106,7 +106,8 @@ class LCBCodeGenerationDataset(BaseDataset):
             path,  # 'livecodebench/code_generation_lite'
             split='test',
             version_tag=release_version,
-            trust_remote_code=True)
+            # trust_remote_code=True
+            )
 
         dataset = dataset.map(transform)
 
@@ -195,7 +196,9 @@ class LCBTestOutputPredictionDataset(BaseDataset):
 
         path = get_data_path(path, local_mode=local_mode)
         # 'livecodebench/test_generation',
-        dataset = load_dataset(path, split='test', trust_remote_code=True)
+        dataset = load_dataset(path, split='test', 
+                            #    trust_remote_code=True
+                            )
         dataset = dataset.map(transform)
 
         return DatasetDict({'test': dataset, 'train': dataset})
@@ -224,7 +227,8 @@ class LCBSelfRepairDataset(BaseDataset):
         dataset = load_dataset(path,
                                split='test',
                                version_tag=release_version,
-                               trust_remote_code=True)
+                            #    trust_remote_code=True
+                               )
         dataset = dataset.map(transform)
 
         return DatasetDict({'test': dataset, 'train': dataset})

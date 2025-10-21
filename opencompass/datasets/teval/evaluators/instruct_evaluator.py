@@ -113,7 +113,7 @@ class InstructEvaluator:
                 res['args'] = args if isinstance(args, dict) else {}
                 res['action'] = res['action'].strip()
             return res
-        except:
+        except Exception:
             return dict(thought=res['thought'], action=res['action'].strip(), args=dict())
 
     def json_format_parse(self, data_sample):
@@ -125,7 +125,7 @@ class InstructEvaluator:
             new_data['action'] = pred_data[template['action']]
             args = pred_data[template['args']]
             new_data['args'] = args if isinstance(args, dict) else {}
-        except Exception as e:
+        except Exception:
             return None
 
         return new_data

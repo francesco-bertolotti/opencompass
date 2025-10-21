@@ -1,3 +1,4 @@
+import os
 from numpy import mean
 from mmengine import load
 from ..utils.format_load import format_load
@@ -44,7 +45,7 @@ class PlanningEvaluator:
         assert match_strategy in ["bertscore", "permutation"], f"match strategy must in [\"bertscore\", \"permutation\"], but get {match_strategy}"
         self.match_strategy = match_strategy
         self.valid_data_count = None
-        self.sentence_model = SentenceTransformer(self.bert_score_model)
+        self.sentence_model = SentenceTransformer(self.bert_score_model, cache_folder=os.environ.get("HF_HOME"), local_files_only=True)
 
     def _load_dataset(self):
         self.dataset = []
@@ -69,9 +70,9 @@ class PlanningEvaluator:
         '''
         try:
             json_format = format_load(data, start_character='[', end_character=']')
-        except Exception as e:
+        except Exception:
             return []
-        if type(json_format) != list:
+        if not isinstance(json_format, list):
             return []
         for i in range(len(json_format)):
             try:
@@ -80,7 +81,7 @@ class PlanningEvaluator:
                     'id': int(json_format[i]['id']),
                     'args': str(json_format[i]['args'])
                 }
-            except Exception as e:
+            except Exception:
                 return []
         return json_format
 
@@ -180,14 +181,16 @@ class PlanningEvaluator:
             #Turn dict into args str
             for i in range(len(gt['planning'])):
                 args_str = ""
-                if type(gt['planning'][i]['args']) == str:
+                if isinstance(gt['planning'][i]['args'], str):
                     args_dict = eval(gt['planning'][i]['args'])
                 else:
-                    assert type(gt['planning'][i]['args']) == dict
+                    assert isinstance(gt['planning'][i]['args'], dict)
                     args_dict = gt['planning'][i]['args']
                 for it in args_dict:
-                    if args_str == "": args_str += f"{it}=\"{args_dict[it]}\""
-                    else: args_str += f", {it}=\"{args_dict[it]}\""
+                    if args_str == "": 
+                        args_str += f"{it}=\"{args_dict[it]}\""
+                    else: 
+                        args_str += f", {it}=\"{args_dict[it]}\""
                 gt['planning'][i]['args'] = '{' + args_str + '}'
 
         elif prompt_type == 'str':
@@ -255,8 +258,10 @@ class PlanningEvaluator:
             )
 
         # truncate plans to 9 since it is too long for permutation.
-        if len(pred_plan) > 9: pred_plan = pred_plan[:9]
-        if len(gt_plan) > 9: gt_plan = pred_plan[:9]
+        if len(pred_plan) > 9: 
+            pred_plan = pred_plan[:9]
+        if len(gt_plan) > 9: 
+            gt_plan = pred_plan[:9]
 
         pred_plan = sorted(pred_plan, key=lambda x: x['id'])
         gt_plan = sorted(gt_plan, key=lambda x: x['id'])
@@ -357,7 +362,7 @@ class PlanningEvaluator:
 
         pred_to_gt_mapping = dict()
         for key in max_weight_matching:
-            if type(key[0]) == int:
+            if isinstance(key[0], int):
                 pred_to_gt_mapping[int(key[0])] = int(key[1])
             else:
                 pred_to_gt_mapping[int(key[1])] = int(key[0])

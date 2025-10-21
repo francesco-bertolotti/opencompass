@@ -26,6 +26,10 @@ class TEvalDataset(BaseDataset):
             origin_prompt = data[i]['origin_prompt']
             if isinstance(origin_prompt, str):
                 origin_prompt = json.loads(origin_prompt)
+
+            # TODO format system prompt for domyn_small
+            # origin_prompt = format_prompt(origin_prompt)
+
             # Aligning the default roles of opencompass
             prompt = origin_prompt + [
                 dict(role='assistant',
@@ -58,3 +62,6 @@ def teval_postprocess(text: str) -> str:
         if text[:2] == '{{' and text[-2:] == '}}':
             text = text[1:-1]
     return str(text)
+
+def format_prompt(prompt: list) -> list:
+    return prompt
