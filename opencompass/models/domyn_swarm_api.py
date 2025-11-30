@@ -1,9 +1,12 @@
 import opencompass
+import diskcache
 import traceback
 import tenacity
+import hashlib
 import asyncio
 import typing
 import openai
+import json
 from domyn_swarm import DomynLLMSwarm
 
 from opencompass.registry import MODELS
@@ -22,6 +25,7 @@ class DomynSwarm(BaseAPIModel):
         temperature: float = 0.0,
         extra_body: typing.Optional[typing.Dict[str, typing.Any]] = dict(),
         timeout: int = 1200,
+        cache: str = "/tmp/opencompass_cache",
     ):
         super().__init__(path="")
         self.system_prompt = system_prompt
@@ -29,14 +33,10 @@ class DomynSwarm(BaseAPIModel):
         self.temperature = temperature
         self.extra_body = extra_body
 
-        # assert self.swarm_name.exists(), f"Swarm {self.swarm_name} does not exist. Please set SWARM_NAME environment variable to the path of the state file."
-        # self.swarm_name = json.load(self.swarm_name.open("r", encoding="utf-8"))
-        # self.endpoint = self.swarm_name["endpoint"]
-        # self.model = self.swarm_name["model"]
-
         swarm = DomynLLMSwarm.from_state(self.swarm_name)
         self.endpoint = swarm.endpoint
         self.model = swarm.model
+        self.cache = cache
 
         self.client = openai.AsyncOpenAI(
             base_url=f"{self.endpoint}/v1",
@@ -62,16 +62,25 @@ class DomynSwarm(BaseAPIModel):
         async def complete(messages) -> list[str]:
             """ Asynchronously complete the prompt using the OpenAI API. """
             try:
-                #logger.info(f"Sending request to OpenAI API with messages: {messages}")
-                #logger.info(f"Using model: {self.extra_body}")
-                resp = await self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    temperature=self.temperature,
-                    extra_body=self.extra_body,
-                )
-                #logger.info(f"Received response: {resp}")
-                return resp.choices[0].message.content
+                with diskcache.Cache(self.cache) as cache:
+                    request = {
+                        "model": self.model,
+                        "messages": messages,
+                        "temperature": self.temperature,
+                        "extra_body": self.extra_body,
+                    }
+                    key = hashlib.sha256(json.dumps(request, sort_keys=True).encode()).hexdigest()
+
+                    if key in cache:
+                        response = cache[key]
+                        print("Cache hit")
+                    else:
+                        print("Cache miss")
+                        response = await self.client.chat.completions.create(**request)
+                        cache[key] = response
+
+                    
+                return response.choices[0].message.content
             except openai.BadRequestError:
                 traceback.print_exc()
                 return ""
