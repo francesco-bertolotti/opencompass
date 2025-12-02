@@ -49,7 +49,7 @@ class SCInferencer(BaseInferencer):
             max_seq_len: Optional[int] = None,
             batch_size: Optional[int] = 1,
             gen_field_replace_token: Optional[str] = '',
-            output_json_filepath: Optional[str] = './icl_inference_output',
+            output_json_filepath: Optional[str] = os.environ["OUTPUT_DIR"] + '/icl_inference_output',
             output_json_filename: Optional[str] = 'predictions',
             save_every: Optional[int] = 1,
             sc_size: Optional[int] = 1,

@@ -172,11 +172,11 @@ class SlurmSequentialRunner(BaseRunner):
         task_name = self.task_prefix + task_name
 
         # Dump task config to file
-        mmengine.mkdir_or_exist('tmp/')
+        mmengine.mkdir_or_exist(os.environ["OUTPUT_DIR"] + '/tmp/')
         # Using uuid to avoid filename conflict
         import uuid
         uuid_str = str(uuid.uuid4())
-        param_file = f'tmp/{uuid_str}_params.py'
+        param_file = os.environ["OUTPUT_DIR"] + f'/tmp/{uuid_str}_params.py'
         process = None
         try:
             cfg.dump(param_file)

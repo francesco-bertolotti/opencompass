@@ -194,8 +194,8 @@ class LocalAPIRunner(BaseRunner):
                 task = TASKS.build(dict(cfg=task, type=self.task_cfg['type']))
                 task_name = task.name
                 # get cmd
-                mmengine.mkdir_or_exist('tmp/')
-                param_file = f'tmp/{os.getpid()}_params.py'
+                mmengine.mkdir_or_exist(os.environ["OUTPUT_DIR"] + '/tmp/')
+                param_file = os.environ["OUTPUT_DIR"] + f'/tmp/{os.getpid()}_params.py'
                 try:
                     task.cfg.dump(param_file)
                     cmd = task.get_command(cfg_path=param_file,

@@ -40,7 +40,7 @@ class PPLInferencer(BaseInferencer):
             model: BaseModel,
             max_seq_len: Optional[int] = None,
             batch_size: Optional[int] = 1,
-            output_json_filepath: Optional[str] = './icl_inference_output',
+            output_json_filepath: Optional[str] = os.environ["OUTPUT_DIR"] + '/icl_inference_output',
             output_json_filename: Optional[str] = 'predictions',
             labels: Optional[List] = None,
             **kwargs) -> None:

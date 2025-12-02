@@ -172,9 +172,9 @@ class RJOBRunner(BaseRunner):
         logger.info(f'Task name: {task_name}')
         # Generate temporary parameter file
         pwd = os.getcwd()
-        mmengine.mkdir_or_exist('tmp/')
+        mmengine.mkdir_or_exist(os.environ["OUTPUT_DIR"] + '/tmp/')
         uuid_str = str(uuid.uuid4())
-        param_file = f'{pwd}/tmp/{uuid_str}_params.py'
+        param_file = os.environ["OUTPUT_DIR"] + f'/tmp/{uuid_str}_params.py'
         try:
             cfg.dump(param_file)
             # Construct rjob submit command arguments

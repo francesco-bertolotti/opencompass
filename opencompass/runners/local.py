@@ -101,11 +101,11 @@ class LocalRunner(BaseRunner):
                 num_gpus = task.num_gpus
                 assert len(all_gpu_ids) >= num_gpus
                 # get cmd
-                mmengine.mkdir_or_exist('tmp/')
+                mmengine.mkdir_or_exist(os.environ["OUTPUT_DIR"] + '/tmp/')
                 import uuid
                 uuid_str = str(uuid.uuid4())
 
-                param_file = f'tmp/{uuid_str}_params.py'
+                param_file = os.environ["OUTPUT_DIR"] + f'/tmp/{uuid_str}_params.py'
                 try:
                     task.cfg.dump(param_file)
                     # if use torchrun, restrict it behaves the same as non
@@ -209,11 +209,11 @@ class LocalRunner(BaseRunner):
 
         pwd = os.getcwd()
         # Dump task config to file
-        mmengine.mkdir_or_exist('tmp/')
+        mmengine.mkdir_or_exist(os.environ["OUTPUT_DIR"] + '/tmp/')
         # Using uuid to avoid filename conflict
         import uuid
         uuid_str = str(uuid.uuid4())
-        param_file = f'{pwd}/tmp/{uuid_str}_params.py'
+        param_file = os.environ["OUTPUT_DIR"] + f'/tmp/{uuid_str}_params.py'
 
         try:
             task.cfg.dump(param_file)

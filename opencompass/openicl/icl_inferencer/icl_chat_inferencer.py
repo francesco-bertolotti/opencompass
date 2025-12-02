@@ -169,7 +169,7 @@ class ChatInferencer(BaseInferencer):
     def __init__(
             self,
             model,
-            output_json_filepath: Optional[str] = './icl_inference_output',
+            output_json_filepath: Optional[str] = os.environ["OUTPUT_DIR"] + '/icl_inference_output',
             output_json_filename: Optional[str] = 'predictions',
             save_every: Optional[int] = 1,
             infer_mode: str = 'last',

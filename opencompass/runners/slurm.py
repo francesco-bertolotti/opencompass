@@ -93,8 +93,8 @@ class SlurmRunner(BaseRunner):
         task_name = task.name
 
         # Dump task config to file
-        mmengine.mkdir_or_exist('tmp/')
-        param_file = f'tmp/{os.getpid()}_params.py'
+        mmengine.mkdir_or_exist(os.environ["OUTPUT_DIR"] + '/tmp/')
+        param_file = os.environ["OUTPUT_DIR"] + f'/tmp/{os.getpid()}_params.py'
         try:
             cfg.dump(param_file)
 
