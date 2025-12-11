@@ -110,6 +110,6 @@ aime2025_datasets = [
         reader_cfg=aime2025_reader_cfg,
         infer_cfg=aime2025_infer_cfg,
         eval_cfg=aime2025_eval_cfg,
-        n=1,
+        n=10,
     )
 ]

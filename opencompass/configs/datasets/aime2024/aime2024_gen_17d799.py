@@ -36,5 +36,6 @@ aime2024_datasets = [
         reader_cfg=aime2024_reader_cfg,
         infer_cfg=aime2024_infer_cfg,
         eval_cfg=aime2024_eval_cfg,
+        n=10,
     )
 ]

@@ -106,7 +106,7 @@ class LCBCodeGenerationDataset(BaseDataset):
             path,  # 'livecodebench/code_generation_lite'
             split='test',
             version_tag=release_version,
-            # trust_remote_code=True
+            trust_remote_code=True
             )
 
         dataset = dataset.map(transform)
