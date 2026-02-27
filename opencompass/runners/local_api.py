@@ -16,37 +16,41 @@ from tqdm import tqdm
 from opencompass.registry import RUNNERS, TASKS
 from opencompass.tasks import OpenICLInferTask
 from opencompass.tasks.base import BaseTask
-from opencompass.utils import (build_dataset_from_cfg, build_model_from_cfg,
-                               get_infer_output_path, get_logger,
-                               task_abbr_from_cfg)
+from opencompass.utils import (
+    build_dataset_from_cfg,
+    build_model_from_cfg,
+    get_infer_output_path,
+    get_logger,
+    task_abbr_from_cfg,
+)
 
 from .base import BaseRunner
 
 
 def monkey_run(self, tokens: SyncManager.Semaphore):
     """Hack for infer task run, add tokens for multiprocess."""
-    self.logger.info(f'Task {task_abbr_from_cfg(self.cfg)}')
+    self.logger.info(f"Task {task_abbr_from_cfg(self.cfg)}")
     for model_cfg, dataset_cfgs in zip(self.model_cfgs, self.dataset_cfgs):
-        self.max_out_len = model_cfg.get('max_out_len', None)
-        self.min_out_len = model_cfg.get('min_out_len', None)
-        self.batch_size = model_cfg.get('batch_size', None)
+        self.max_out_len = model_cfg.get("max_out_len", None)
+        self.min_out_len = model_cfg.get("min_out_len", None)
+        self.batch_size = model_cfg.get("batch_size", None)
         self.model = build_model_from_cfg(model_cfg)
         # add global tokens for concurrents
-        assert self.model.is_api, 'Only API model is supported.'
+        assert self.model.is_api, "Only API model is supported."
         self.model.tokens = tokens
 
         for dataset_cfg in dataset_cfgs:
             self.model_cfg = model_cfg
             self.dataset_cfg = dataset_cfg
-            self.infer_cfg = self.dataset_cfg['infer_cfg']
+            self.infer_cfg = self.dataset_cfg["infer_cfg"]
             self.dataset = build_dataset_from_cfg(self.dataset_cfg)
             self.sub_cfg = {
-                'models': [self.model_cfg],
-                'datasets': [[self.dataset_cfg]],
+                "models": [self.model_cfg],
+                "datasets": [[self.dataset_cfg]],
             }
             out_path = get_infer_output_path(
-                self.model_cfg, self.dataset_cfg,
-                osp.join(self.work_dir, 'predictions'))
+                self.model_cfg, self.dataset_cfg, osp.join(self.work_dir, "predictions")
+            )
             if osp.exists(out_path):
                 continue
             self._inference()
@@ -58,7 +62,7 @@ old_stderr = sys.stderr
 
 def redirect_std_to_file(filename: str):
     """Redirect stdout and stderr, also change logger stream handler."""
-    f = open(filename, 'w', encoding='utf-8')
+    f = open(filename, "w", encoding="utf-8")
     sys.stdout = f
     sys.stderr = f
     # change logger stream handler as well
@@ -68,7 +72,8 @@ def redirect_std_to_file(filename: str):
             h.stream = sys.stdout
     # special treat for icl_gen_inferencer logger
     gen_logger = logging.getLogger(
-        'opencompass.openicl.icl_inferencer.icl_gen_inferencer')
+        "opencompass.openicl.icl_inferencer.icl_gen_inferencer"
+    )
     for h in gen_logger.handlers:
         if isinstance(h, logging.StreamHandler):
             h.stream = sys.stdout
@@ -86,7 +91,8 @@ def reset_std():
             h.stream = sys.stdout
     # special treat for icl_gen_inferencer logger
     gen_logger = logging.getLogger(
-        'opencompass.openicl.icl_inferencer.icl_gen_inferencer')
+        "opencompass.openicl.icl_inferencer.icl_gen_inferencer"
+    )
     for h in gen_logger.handlers:
         if isinstance(h, logging.StreamHandler):
             h.stream = sys.stdout
@@ -110,7 +116,7 @@ def launch(task: BaseTask, tokens: SyncManager.Semaphore):
 
     try:
         # get log file and redirect stdout and stderr
-        out_path = task.get_log_path(file_extension='out')
+        out_path = task.get_log_path(file_extension="out")
         mmengine.mkdir_or_exist(osp.split(out_path)[0])
         redirect_std_to_file(out_path)
 
@@ -122,13 +128,13 @@ def launch(task: BaseTask, tokens: SyncManager.Semaphore):
         inferencer.run(inferencer, tokens)
         inferencer.run = origin_run
         end_time = time.time()
-        logger.info(f'time elapsed: {end_time - start_time:.2f}s')
+        logger.info(f"time elapsed: {end_time - start_time:.2f}s")
     except Exception:
         # print trace back in target file
         traceback.print_exc()
         # reset stdout and stderr
         reset_std()
-        logger.error(f'task {task_name} fail, see\n{out_path}')
+        logger.error(f"task {task_name} fail, see\n{out_path}")
         returncode = 1
     else:
         # reset stdout and stderr
@@ -139,7 +145,7 @@ def launch(task: BaseTask, tokens: SyncManager.Semaphore):
 def submit(task, type, tokens):
     """Helper for launch the task."""
     task = TASKS.build(dict(cfg=task, type=type))
-    tqdm.write(f'Launch {task.name} on CPU ')
+    tqdm.write(f"Launch {task.name} on CPU ")
 
     res = launch(task, tokens)
     return res
@@ -163,19 +169,21 @@ class LocalAPIRunner(BaseRunner):
         lark_bot_url (str): Lark bot url.
     """
 
-    def __init__(self,
-                 task: ConfigDict,
-                 concurrent_users: int,
-                 max_num_workers: int = 16,
-                 debug: bool = False,
-                 lark_bot_url: str = None):
+    def __init__(
+        self,
+        task: ConfigDict,
+        concurrent_users: int,
+        max_num_workers: int = 16,
+        debug: bool = False,
+        lark_bot_url: str = None,
+    ):
         super().__init__(task=task, debug=debug, lark_bot_url=lark_bot_url)
         self.max_num_workers = max_num_workers
         self.concurrent_users = concurrent_users
-        assert task['type'] in [
-            'OpenICLInferTask',
-            'opencompass.tasks.OpenICLInferTask',
-        ], 'Only supported for api infer task.'
+        assert task["type"] in [
+            "OpenICLInferTask",
+            "opencompass.tasks.OpenICLInferTask",
+        ], "Only supported for api infer task."
 
     def launch(self, tasks: List[Dict[str, Any]]) -> List[Tuple[str, int]]:
         """Launch multiple tasks.
@@ -191,17 +199,16 @@ class LocalAPIRunner(BaseRunner):
         if self.debug:
             # fall back to LocalRunner debug mode
             for task in tasks:
-                task = TASKS.build(dict(cfg=task, type=self.task_cfg['type']))
+                task = TASKS.build(dict(cfg=task, type=self.task_cfg["type"]))
                 task_name = task.name
                 # get cmd
-                mmengine.mkdir_or_exist(os.environ["OUTPUT_DIR"] + '/tmp/')
-                param_file = os.environ["OUTPUT_DIR"] + f'/tmp/{os.getpid()}_params.py'
+                mmengine.mkdir_or_exist(os.environ["TMPDIR"])
+                param_file = os.environ["TMPDIR"] + f"/{os.getpid()}_params.py"
                 try:
                     task.cfg.dump(param_file)
-                    cmd = task.get_command(cfg_path=param_file,
-                                           template='{task_cmd}')
+                    cmd = task.get_command(cfg_path=param_file, template="{task_cmd}")
                     # run in subprocess if starts with torchrun etc.
-                    if cmd.startswith('python'):
+                    if cmd.startswith("python"):
                         task.run()
                     else:
                         subprocess.run(cmd, shell=True, text=True)
@@ -209,16 +216,17 @@ class LocalAPIRunner(BaseRunner):
                     os.remove(param_file)
                 status.append((task_name, 0))
         else:
-
             pbar = tqdm(total=len(tasks))
 
-            get_logger().info('All the logs and processes for each task'
-                              ' should be checked in each infer/.out file.')
+            get_logger().info(
+                "All the logs and processes for each task"
+                " should be checked in each infer/.out file."
+            )
             with Manager() as manager:
                 tokens = manager.Semaphore(self.concurrent_users)
                 # pbar update has visualization issue when direct
                 # update pbar in callback, need an extra counter
-                pbar_counter = manager.Value('i', 0)
+                pbar_counter = manager.Value("i", 0)
                 status = []
 
                 def update(args):
@@ -228,9 +236,11 @@ class LocalAPIRunner(BaseRunner):
 
                 with Pool(processes=self.max_num_workers) as pool:
                     for task in tasks:
-                        pool.apply_async(submit,
-                                         (task, self.task_cfg['type'], tokens),
-                                         callback=update)
+                        pool.apply_async(
+                            submit,
+                            (task, self.task_cfg["type"], tokens),
+                            callback=update,
+                        )
                     pool.close()
 
                     # update progress bar

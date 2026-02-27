@@ -10,8 +10,11 @@ from mmengine.config import ConfigDict
 from opencompass.openicl.icl_evaluator import BaseEvaluator
 from opencompass.openicl.icl_inferencer import GenInferencer
 from opencompass.openicl.icl_retriever import ZeroRetriever
-from opencompass.registry import (DICT_POSTPROCESSORS, ICL_PROMPT_TEMPLATES,
-                                  TEXT_POSTPROCESSORS)
+from opencompass.registry import (
+    DICT_POSTPROCESSORS,
+    ICL_PROMPT_TEMPLATES,
+    TEXT_POSTPROCESSORS,
+)
 from opencompass.utils import build_dataset_from_cfg, build_model_from_cfg
 from opencompass.utils.logging import get_logger
 
@@ -46,13 +49,13 @@ class DomynSwarmLLMEvaluator(BaseEvaluator):
             self.judge_cfg = self.default_judge_cfg
         else:
             self.judge_cfg = judge_cfg
-        self.output_path = ''
+        self.output_path = ""
 
         self.prompt_template = ICL_PROMPT_TEMPLATES.build(prompt_template)
 
         # Build Dataset
         self.dataset_cfg = dataset_cfg
-        assert dataset_cfg is not None, 'dataset_cfg is None'
+        assert dataset_cfg is not None, "dataset_cfg is None"
 
         self.dict_postprocessor = dict_postprocessor
         self.pred_postprocessor = pred_postprocessor
@@ -60,17 +63,16 @@ class DomynSwarmLLMEvaluator(BaseEvaluator):
     def build_inferencer(self):
         """Build LLM Inference."""
 
-        self.output_path = f'{self._out_dir}_replica{self.dataset_replica_idx}.json'  # noqa
-        logger.info(f'LLM judge details will be saved at:{self.output_path}')
+        self.output_path = f"{self._out_dir}_replica{self.dataset_replica_idx}.json"  # noqa
+        logger.info(f"LLM judge details will be saved at:{self.output_path}")
         out_dir, out_name = osp.split(self.output_path)
 
-        logger.info(
-            f'Set self.output_path to {self.output_path} for current task')
-        assert self.output_path is not None, 'output_path is None'
+        logger.info(f"Set self.output_path to {self.output_path} for current task")
+        assert self.output_path is not None, "output_path is None"
 
         # Build LLM Inference
-        max_out_len = self.judge_cfg.get('max_out_len', None)
-        batch_size = self.judge_cfg.get('batch_size', None)
+        max_out_len = self.judge_cfg.get("max_out_len", None)
+        batch_size = self.judge_cfg.get("batch_size", None)
 
         model = build_model_from_cfg(model_cfg=self.judge_cfg)
 
@@ -96,8 +98,9 @@ class DomynSwarmLLMEvaluator(BaseEvaluator):
             test_set: Optional Dataset containing additional
             context for evaluation
         """
-        assert len(predictions) == len(
-            references), 'predictions and references must have the same length'
+        assert len(predictions) == len(references), (
+            "predictions and references must have the same length"
+        )
 
         # -------------- Build Inferencer ----------------
         self.build_inferencer()
@@ -105,19 +108,20 @@ class DomynSwarmLLMEvaluator(BaseEvaluator):
         predictions = self.pred_postprocess(predictions)
 
         # For Single Round Dialogue
-        prediction_dict = {'prediction': predictions, 'obj_gold': references}
+        prediction_dict = {"prediction": predictions, "obj_gold": references}
 
         # ---------------- Build Dataset for LLM Judge -----------------
         if self.dataset_cfg:
             dataset = build_dataset_from_cfg(self.dataset_cfg)
             for k, v in prediction_dict.items():
-                dataset.reader.dataset['test'] = dataset.test.add_column(k, v)
+                dataset.reader.dataset["test"] = dataset.test.add_column(k, v)
                 dataset.reader.input_columns.append(k)
 
             if references:
-                dataset.reader.input_columns.append('reference')
-                dataset.reader.dataset['test'] = dataset.test.add_column(
-                    'reference', references)
+                dataset.reader.input_columns.append("reference")
+                dataset.reader.dataset["test"] = dataset.test.add_column(
+                    "reference", references
+                )
         else:
             # Handle test_set in the else branch
             from opencompass.datasets.lmeval import LMEvalDataset
@@ -125,43 +129,42 @@ class DomynSwarmLLMEvaluator(BaseEvaluator):
             if test_set is not None:
                 # If test_set is provided, use it as the base
                 # Ensure necessary columns exist
-                if 'prediction' not in test_set.column_names:
-                    test_set = test_set.add_column('prediction', predictions)
-                if 'reference' not in test_set.column_names:
-                    test_set = test_set.add_column('reference', references)
+                if "prediction" not in test_set.column_names:
+                    test_set = test_set.add_column("prediction", predictions)
+                if "reference" not in test_set.column_names:
+                    test_set = test_set.add_column("reference", references)
 
                 # Prepare input_columns and data dictionary
                 input_columns = test_set.column_names
                 data_dict = {
-                    column: test_set[column]
-                    for column in test_set.column_names
+                    column: test_set[column] for column in test_set.column_names
                 }
             else:
                 # Original default dataset building logic
                 input_columns = list(prediction_dict.keys())
                 if references:
-                    input_columns.append('reference')
+                    input_columns.append("reference")
                 data_dict = prediction_dict.copy()
                 if references:
-                    data_dict['reference'] = references
+                    data_dict["reference"] = references
 
             # Create LMEvalDataset
             dataset = LMEvalDataset(
                 reader_cfg=dict(
                     input_columns=input_columns,
                     output_column=None,
-                    train_split='test',
+                    train_split="test",
                 ),
                 **data_dict,
             )
 
-        dataset.reader.output_column = 'reference'
+        dataset.reader.output_column = "reference"
 
         retriever = ZeroRetriever(dataset)
         # ----------------- LLM Judge ----------------
-        self.inferencer.inference(retriever=retriever,
-                                  prompt_template=self.prompt_template)
-
+        self.inferencer.inference(
+            retriever=retriever, prompt_template=self.prompt_template
+        )
 
         output = mmengine.load(self.output_path)
         return self.output_postprocess(output, dataset)
@@ -171,7 +174,7 @@ class DomynSwarmLLMEvaluator(BaseEvaluator):
             return predictions
         else:
             kwargs = deepcopy(self.pred_postprocessor)
-            proc = TEXT_POSTPROCESSORS.get(kwargs.pop('type'))
+            proc = TEXT_POSTPROCESSORS.get(kwargs.pop("type"))
             return [proc(pred, **kwargs) for pred in predictions]
 
     def output_postprocess(self, output: Dict, dataset=None) -> Dict:
@@ -183,37 +186,37 @@ class DomynSwarmLLMEvaluator(BaseEvaluator):
             return output
         else:
             kwargs = deepcopy(self.dict_postprocessor)
-            proc = DICT_POSTPROCESSORS.get(kwargs.pop('type'))
+            proc = DICT_POSTPROCESSORS.get(kwargs.pop("type"))
             sig = inspect.signature(proc)
-            if 'dataset' in sig.parameters:
-                return proc(output,
-                            self.output_path,
-                            dataset=dataset,
-                            **kwargs)
+            if "dataset" in sig.parameters:
+                return proc(output, self.output_path, dataset=dataset, **kwargs)
             else:
                 return proc(output, self.output_path, **kwargs)
 
     @property
     def default_judge_cfg(self):
         from opencompass.models.domyn_swarm_api import DomynSwarm
-        logger.info('Please set your judge model in \
-            `JUDGE_SWARM_STATE` environment variable.')
+
+        logger.info(
+            "Please set your judge model in \
+            `JUDGE_SWARM_STATE` environment variable."
+        )
         DEFAULT_JUDGE_CFG = dict(
             type="opencompass.models.domyn_swarm_api.DomynSwarm",
-            abbr=os.environ.get("MODEL_ABBR", "domyn-swarm-judge"),
-            batch_size=int(os.environ.get("JUDGE_BATCH_SIZE", 128)),
-            #system_prompt="thinking on",
-            state_path=os.environ.get("JUDGE_SWARM_STATE", None),
+            abbr=os.environ.build()["MODEL_ABBR"],
+            batch_size=int(os.environ.build()["JUDGE_BATCH_SIZE"]),
+            # system_prompt="thinking on",
+            state_path=os.environ.build()["JUDGE_SWARM_STATE"],
             temperature=0.6,
             extra_body=dict(
                 top_p=0.95,
                 top_k=20,
                 min_p=0.1,
                 presence_penalty=0.0,
-                #max_tokens=8192,
-                #chat_template_kwargs=dict(enable_thinking=True) # Qwen 3 Specific
+                # max_tokens=8192,
+                # chat_template_kwargs=dict(enable_thinking=True) # Qwen 3 Specific
             ),
-            timeout=int(os.environ.get("TIMEOUT", 3200)),
+            timeout=int(os.environ.build()["TIMEOUT"]),
         )
 
         return DEFAULT_JUDGE_CFG

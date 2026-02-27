@@ -24,15 +24,15 @@ from .base import BaseRunner
 def get_command_template(gpu_ids: List[int]) -> str:
     """Format command template given available gpu ids."""
     if is_npu_available():
-        tmpl = 'ASCEND_RT_VISIBLE_DEVICES=' + ','.join(str(i) for i in gpu_ids)
-        tmpl += ' {task_cmd}'
-    elif sys.platform == 'win32':  # Always return win32 for Windows
+        tmpl = "ASCEND_RT_VISIBLE_DEVICES=" + ",".join(str(i) for i in gpu_ids)
+        tmpl += " {task_cmd}"
+    elif sys.platform == "win32":  # Always return win32 for Windows
         # use command in Windows format
-        tmpl = 'set CUDA_VISIBLE_DEVICES=' + ','.join(str(i) for i in gpu_ids)
-        tmpl += ' & {task_cmd}'
+        tmpl = "set CUDA_VISIBLE_DEVICES=" + ",".join(str(i) for i in gpu_ids)
+        tmpl += " & {task_cmd}"
     else:
-        tmpl = 'CUDA_VISIBLE_DEVICES=' + ','.join(str(i) for i in gpu_ids)
-        tmpl += ' {task_cmd}'
+        tmpl = "CUDA_VISIBLE_DEVICES=" + ",".join(str(i) for i in gpu_ids)
+        tmpl += " {task_cmd}"
     return tmpl
 
 
@@ -50,21 +50,23 @@ class LocalRunner(BaseRunner):
         lark_bot_url (str): Lark bot url.
     """
 
-    def __init__(self,
-                 task: ConfigDict,
-                 max_num_workers: int = 16,
-                 debug: bool = False,
-                 max_workers_per_gpu: int = 1,
-                 lark_bot_url: str = None,
-                 keep_tmp_file: bool = False,
-                 **kwargs):
+    def __init__(
+        self,
+        task: ConfigDict,
+        max_num_workers: int = 16,
+        debug: bool = False,
+        max_workers_per_gpu: int = 1,
+        lark_bot_url: str = None,
+        keep_tmp_file: bool = False,
+        **kwargs,
+    ):
         super().__init__(task=task, debug=debug, lark_bot_url=lark_bot_url)
         self.max_num_workers = max_num_workers
         self.max_workers_per_gpu = max_workers_per_gpu
         self.keep_tmp_file = keep_tmp_file
         logger = get_logger()
         for k, v in kwargs.items():
-            logger.warning(f'Ignored argument in {self.__module__}: {k}={v}')
+            logger.warning(f"Ignored argument in {self.__module__}: {k}={v}")
 
     def launch(self, tasks: List[Dict[str, Any]]) -> List[Tuple[str, int]]:
         """Launch multiple tasks.
@@ -81,31 +83,31 @@ class LocalRunner(BaseRunner):
         import torch
 
         if is_npu_available():
-            visible_devices = 'ASCEND_RT_VISIBLE_DEVICES'
+            visible_devices = "ASCEND_RT_VISIBLE_DEVICES"
             device_nums = torch.npu.device_count()
         else:
-            visible_devices = 'CUDA_VISIBLE_DEVICES'
+            visible_devices = "CUDA_VISIBLE_DEVICES"
             device_nums = torch.cuda.device_count()
         if visible_devices in os.environ:
             all_gpu_ids = [
-                int(i)
-                for i in re.findall(r'(?<!-)\d+', os.getenv(visible_devices))
+                int(i) for i in re.findall(r"(?<!-)\d+", os.getenv(visible_devices))
             ]
         else:
             all_gpu_ids = list(range(device_nums))
 
         if self.debug:
             for task in tasks:
-                task = TASKS.build(dict(cfg=task, type=self.task_cfg['type']))
+                task = TASKS.build(dict(cfg=task, type=self.task_cfg["type"]))
                 task_name = task.name
                 num_gpus = task.num_gpus
                 assert len(all_gpu_ids) >= num_gpus
                 # get cmd
-                mmengine.mkdir_or_exist(os.environ["OUTPUT_DIR"] + '/tmp/')
+                mmengine.mkdir_or_exist(os.environ["TMPDIR"])
                 import uuid
+
                 uuid_str = str(uuid.uuid4())
 
-                param_file = os.environ["OUTPUT_DIR"] + f'/tmp/{uuid_str}_params.py'
+                param_file = os.environ["TMPDIR"] + f"/{uuid_str}_params.py"
                 try:
                     task.cfg.dump(param_file)
                     # if use torchrun, restrict it behaves the same as non
@@ -113,37 +115,41 @@ class LocalRunner(BaseRunner):
                     # available resources which might cause inconsistent
                     # behavior.
                     if len(all_gpu_ids) > num_gpus and num_gpus > 0:
-                        get_logger().warning(f'Only use {num_gpus} GPUs for '
-                                             f'total {len(all_gpu_ids)} '
-                                             'available GPUs in debug mode.')
+                        get_logger().warning(
+                            f"Only use {num_gpus} GPUs for "
+                            f"total {len(all_gpu_ids)} "
+                            "available GPUs in debug mode."
+                        )
                     tmpl = get_command_template(all_gpu_ids[:num_gpus])
                     cmd = task.get_command(cfg_path=param_file, template=tmpl)
                     # run in subprocess if starts with torchrun etc.
-                    if 'python3 ' in cmd or 'python ' in cmd:
+                    if "python3 " in cmd or "python " in cmd:
                         # If it is an infer type task do not reload if
                         # the current model has already been loaded.
-                        if 'infer' in self.task_cfg.type.lower():
+                        if "infer" in self.task_cfg.type.lower():
                             # If a model instance already exists,
                             # do not reload it.
-                            task.run(cur_model=getattr(self, 'cur_model',
-                                                       None),
-                                     cur_model_abbr=getattr(
-                                         self, 'cur_model_abbr', None))
+                            task.run(
+                                cur_model=getattr(self, "cur_model", None),
+                                cur_model_abbr=getattr(self, "cur_model_abbr", None),
+                            )
                             self.cur_model = task.model
-                            self.cur_model_abbr = model_abbr_from_cfg(
-                                task.model_cfg)
+                            self.cur_model_abbr = model_abbr_from_cfg(task.model_cfg)
                         else:
                             task.run()
                     else:
-                        tmp_logs = f'tmp/{os.getpid()}_debug.log'
+                        tmp_logs = f"tmp/{os.getpid()}_debug.log"
                         get_logger().warning(
-                            f'Debug mode, log will be saved to {tmp_logs}')
-                        with open(tmp_logs, 'a') as log_file:
-                            subprocess.run(cmd,
-                                           shell=True,
-                                           text=True,
-                                           stdout=log_file,
-                                           stderr=subprocess.STDOUT)
+                            f"Debug mode, log will be saved to {tmp_logs}"
+                        )
+                        with open(tmp_logs, "a") as log_file:
+                            subprocess.run(
+                                cmd,
+                                shell=True,
+                                text=True,
+                                stdout=log_file,
+                                stderr=subprocess.STDOUT,
+                            )
                 finally:
                     if not self.keep_tmp_file:
                         os.remove(param_file)
@@ -161,7 +167,7 @@ class LocalRunner(BaseRunner):
             lock = Lock()
 
             def submit(task, index):
-                task = TASKS.build(dict(cfg=task, type=self.task_cfg['type']))
+                task = TASKS.build(dict(cfg=task, type=self.task_cfg["type"]))
                 num_gpus = task.num_gpus
                 assert len(gpus) >= num_gpus
 
@@ -176,10 +182,11 @@ class LocalRunner(BaseRunner):
                     time.sleep(1)
 
                 if num_gpus > 0:
-                    tqdm.write(f'launch {task.name} on GPU ' +
-                               ','.join(map(str, gpu_ids)))
+                    tqdm.write(
+                        f"launch {task.name} on GPU " + ",".join(map(str, gpu_ids))
+                    )
                 else:
-                    tqdm.write(f'launch {task.name} on CPU ')
+                    tqdm.write(f"launch {task.name} on CPU ")
 
                 res = self._launch(task, gpu_ids, index)
                 pbar.update()
@@ -189,8 +196,7 @@ class LocalRunner(BaseRunner):
 
                 return res
 
-            with ThreadPoolExecutor(
-                    max_workers=self.max_num_workers) as executor:
+            with ThreadPoolExecutor(max_workers=self.max_num_workers) as executor:
                 status = executor.map(submit, tasks, range(len(tasks)))
 
         return status
@@ -209,36 +215,33 @@ class LocalRunner(BaseRunner):
 
         pwd = os.getcwd()
         # Dump task config to file
-        mmengine.mkdir_or_exist(os.environ["OUTPUT_DIR"] + '/tmp/')
+        mmengine.mkdir_or_exist(os.environ["TMPDIR"])
         # Using uuid to avoid filename conflict
         import uuid
+
         uuid_str = str(uuid.uuid4())
-        param_file = os.environ["OUTPUT_DIR"] + f'/tmp/{uuid_str}_params.py'
+        param_file = os.environ["TMPDIR"] + f"/{uuid_str}_params.py"
 
         try:
             task.cfg.dump(param_file)
             tmpl = get_command_template(gpu_ids)
-            get_cmd = partial(task.get_command,
-                              cfg_path=param_file,
-                              template=tmpl)
+            get_cmd = partial(task.get_command, cfg_path=param_file, template=tmpl)
             cmd = get_cmd()
 
             logger = get_logger()
-            logger.debug(f'Running command: {cmd}')
+            logger.debug(f"Running command: {cmd}")
 
             # Run command
-            out_path = task.get_log_path(file_extension='out')
+            out_path = task.get_log_path(file_extension="out")
             mmengine.mkdir_or_exist(osp.split(out_path)[0])
-            stdout = open(out_path, 'w', encoding='utf-8')
+            stdout = open(out_path, "w", encoding="utf-8")
 
-            result = subprocess.run(cmd,
-                                    shell=True,
-                                    text=True,
-                                    stdout=stdout,
-                                    stderr=stdout)
+            result = subprocess.run(
+                cmd, shell=True, text=True, stdout=stdout, stderr=stdout
+            )
 
             if result.returncode != 0:
-                logger.error(f'task {task_name} fail, see\n{out_path}')
+                logger.error(f"task {task_name} fail, see\n{out_path}")
         finally:
             # Clean up
             if not self.keep_tmp_file:

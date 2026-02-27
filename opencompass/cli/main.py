@@ -266,12 +266,12 @@ def main():
     cfg_time_str = dir_time_str = datetime.now().strftime('%Y%m%d_%H%M%S')
     if args.reuse:
         if args.reuse == 'latest':
-            if not os.path.exists(cfg.work_dir) or not os.listdir(
-                    cfg.work_dir):
+            if not os.path.exists(cfg.work_dir) or len(os.listdir(
+                    cfg.work_dir)) < 2:
                 logger.warning('No previous results to reuse!')
             else:
                 dirs = os.listdir(cfg.work_dir)
-                dir_time_str = sorted(dirs)[-1]
+                dir_time_str = [d for d in sorted(dirs) if osp.isdir(osp.join(cfg.work_dir, d))][-1]
         else:
             dir_time_str = args.reuse
         logger.info(f'Reusing experiements from {dir_time_str}')

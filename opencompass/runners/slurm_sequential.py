@@ -49,18 +49,20 @@ class SlurmSequentialRunner(BaseRunner):
             For example ['-c 12', '-w node1']. Defaults to None.
     """
 
-    def __init__(self,
-                 task: ConfigDict,
-                 task_prefix: str = '',
-                 max_num_workers: int = 32,
-                 retry: int = 2,
-                 partition: str = None,
-                 quotatype: str = None,
-                 qos: str = None,
-                 debug: bool = False,
-                 lark_bot_url: str = None,
-                 extra_command: Optional[List[str]] = None,
-                 keep_tmp_file: bool = False):
+    def __init__(
+        self,
+        task: ConfigDict,
+        task_prefix: str = "",
+        max_num_workers: int = 32,
+        retry: int = 2,
+        partition: str = None,
+        quotatype: str = None,
+        qos: str = None,
+        debug: bool = False,
+        lark_bot_url: str = None,
+        extra_command: Optional[List[str]] = None,
+        keep_tmp_file: bool = False,
+    ):
         super().__init__(task=task, debug=debug, lark_bot_url=lark_bot_url)
         self.max_num_workers = max_num_workers
         self.retry = retry
@@ -75,10 +77,11 @@ class SlurmSequentialRunner(BaseRunner):
         self.extra_command = extra_command
 
         logger = get_logger()
-        if self.quotatype in ['spot', 'auto']:
+        if self.quotatype in ["spot", "auto"]:
             logger.warning(
-                'Quotatype spot or auto may cause stability issues, '
-                'reserved is recommended.')
+                "Quotatype spot or auto may cause stability issues, "
+                "reserved is recommended."
+            )
 
     def launch(self, tasks: List[Dict[str, Any]]) -> List[Tuple[str, int]]:
         if not self.debug:
@@ -86,10 +89,9 @@ class SlurmSequentialRunner(BaseRunner):
         else:
             return [self._launch(task) for task in tasks]
 
-    def _launch_wo_debug(self,
-                         tasks: List[Dict[str, Any]]) -> List[Tuple[str, int]]:
-        launched_bar = tqdm(total=len(tasks), desc='Launched')
-        finished_bar = tqdm(total=len(tasks), desc='Finished')
+    def _launch_wo_debug(self, tasks: List[Dict[str, Any]]) -> List[Tuple[str, int]]:
+        launched_bar = tqdm(total=len(tasks), desc="Launched")
+        finished_bar = tqdm(total=len(tasks), desc="Finished")
         job_ids = []
         status = []
 
@@ -101,7 +103,7 @@ class SlurmSequentialRunner(BaseRunner):
         def _err_update(err):
             finished_bar.update()
             traceback.print_exc()
-            status.append(('', -1))
+            status.append(("", -1))
 
         try:
             parent_conns = []
@@ -109,13 +111,12 @@ class SlurmSequentialRunner(BaseRunner):
             with Pool(processes=num_workers) as pool:
                 for task in tasks:
                     parent_conn, child_conn = Pipe()
-                    _ = pool.apply_async(self._launch,
-                                         kwds={
-                                             'cfg': task,
-                                             'child_conn': child_conn
-                                         },
-                                         callback=_update,
-                                         error_callback=_err_update)
+                    _ = pool.apply_async(
+                        self._launch,
+                        kwds={"cfg": task, "child_conn": child_conn},
+                        callback=_update,
+                        error_callback=_err_update,
+                    )
                     time.sleep(0.5)
 
                     job_id = parent_conn.recv()
@@ -140,7 +141,7 @@ class SlurmSequentialRunner(BaseRunner):
                         break
                 parent_conn.close()
 
-            tbar = tqdm(total=len(job_ids), desc='clear sruns')
+            tbar = tqdm(total=len(job_ids), desc="clear sruns")
             for batched_job_ids in batched(job_ids, 4):
                 while True:
                     ps = []
@@ -149,16 +150,18 @@ class SlurmSequentialRunner(BaseRunner):
                             tbar.update()
                             if job_id is None:
                                 continue
-                            cmd = f'scancel {job_id}'
-                            p = subprocess.Popen(cmd,
-                                                 shell=True,
-                                                 stdout=subprocess.PIPE,
-                                                 stderr=subprocess.STDOUT)
+                            cmd = f"scancel {job_id}"
+                            p = subprocess.Popen(
+                                cmd,
+                                shell=True,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT,
+                            )
                             ps.append(p)
                         break
                     except KeyboardInterrupt:
                         logger = get_logger()
-                        logger.error('Ignoring KeyboardInterrupt...')
+                        logger.error("Ignoring KeyboardInterrupt...")
                 for p in ps:
                     p.wait()
             tbar.close()
@@ -166,40 +169,39 @@ class SlurmSequentialRunner(BaseRunner):
     def _launch(self, cfg: ConfigDict, child_conn: Pipe = None):
         logger = get_logger()
 
-        task = TASKS.build(dict(cfg=cfg, type=self.task_cfg['type']))
+        task = TASKS.build(dict(cfg=cfg, type=self.task_cfg["type"]))
         num_gpus = task.num_gpus
         task_name = task.name
         task_name = self.task_prefix + task_name
 
         # Dump task config to file
-        mmengine.mkdir_or_exist(os.environ["OUTPUT_DIR"] + '/tmp/')
+        mmengine.mkdir_or_exist(os.environ["TMPDIR"])
         # Using uuid to avoid filename conflict
         import uuid
+
         uuid_str = str(uuid.uuid4())
-        param_file = os.environ["OUTPUT_DIR"] + f'/tmp/{uuid_str}_params.py'
+        param_file = os.environ["TMPDIR"] + f"/{uuid_str}_params.py"
         process = None
         try:
             cfg.dump(param_file)
 
             # Build up slurm command
-            tmpl = 'srun'
+            tmpl = "srun"
             if self.partition:
-                tmpl += f' -p {self.partition}'
+                tmpl += f" -p {self.partition}"
             if self.quotatype:
-                tmpl += f' --quotatype={self.quotatype}'
+                tmpl += f" --quotatype={self.quotatype}"
             if self.qos:
-                tmpl += f' --qos={self.qos}'
+                tmpl += f" --qos={self.qos}"
             if num_gpus > 0:
-                tmpl += f' --gres=gpu:{num_gpus}'
+                tmpl += f" --gres=gpu:{num_gpus}"
             for extra_cmd in self.extra_command:
-                tmpl += f' {extra_cmd}'
-            tmpl += f" -N1 -u -J '{task_name[:512]}'" + ' {task_cmd}'
-            get_cmd = partial(task.get_command,
-                              cfg_path=param_file,
-                              template=tmpl)
+                tmpl += f" {extra_cmd}"
+            tmpl += f" -N1 -u -J '{task_name[:512]}'" + " {task_cmd}"
+            get_cmd = partial(task.get_command, cfg_path=param_file, template=tmpl)
             cmd = get_cmd()
 
-            logger.debug(f'Running command: {cmd}')
+            logger.debug(f"Running command: {cmd}")
 
             retry = self.retry
             output_paths = task.get_output_paths()
@@ -211,8 +213,7 @@ class SlurmSequentialRunner(BaseRunner):
                     process.wait()
                     if self._job_failed(process.returncode, output_paths):
                         if retry > 0:
-                            logger.warning(
-                                f'task {task_name} failed, retrying...')
+                            logger.warning(f"task {task_name} failed, retrying...")
                             retry -= 1
                             cmd = get_cmd()
                         else:
@@ -220,23 +221,22 @@ class SlurmSequentialRunner(BaseRunner):
                     else:
                         break
             else:
-                out_path = task.get_log_path(file_extension='out')
+                out_path = task.get_log_path(file_extension="out")
                 mmengine.mkdir_or_exist(osp.split(out_path)[0])
-                stdout = open(out_path, 'w', encoding='utf-8')
+                stdout = open(out_path, "w", encoding="utf-8")
                 stderr = subprocess.PIPE
                 while True:
-                    process = subprocess.Popen(cmd,
-                                               shell=True,
-                                               text=True,
-                                               stdout=stdout,
-                                               stderr=stderr)
+                    process = subprocess.Popen(
+                        cmd, shell=True, text=True, stdout=stdout, stderr=stderr
+                    )
                     job_id = None
                     while True:
                         line = process.stderr.readline()
                         if not line:
                             break
                         match = re.search(
-                            r'srun: Job (\d+) scheduled successfully!', line)
+                            r"srun: Job (\d+) scheduled successfully!", line
+                        )
                         if match and job_id is None:
                             job_id = match.group(1)
                             child_conn.send(job_id)
@@ -247,8 +247,7 @@ class SlurmSequentialRunner(BaseRunner):
                             retry -= 1
                             cmd = get_cmd()
                         else:
-                            logger.error(
-                                f'task {task_name} fail, see\n{out_path}')
+                            logger.error(f"task {task_name} fail, see\n{out_path}")
                             break
                     else:
                         break
@@ -270,4 +269,5 @@ class SlurmSequentialRunner(BaseRunner):
 
     def _job_failed(self, return_code: int, output_paths: List[str]) -> bool:
         return return_code != 0 or not all(
-            osp.exists(output_path) for output_path in output_paths)
+            osp.exists(output_path) for output_path in output_paths
+        )
