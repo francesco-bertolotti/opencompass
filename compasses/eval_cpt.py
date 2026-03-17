@@ -66,6 +66,17 @@ size_limit = os.environ.build()["SIZE_LIMIT"]
 for dataset in datasets:
     dataset["reader_cfg"].setdefault("test_range", f"[slice(None,{size_limit},None)]")
 
+print("Extra body:", os.environ.build()["EXTRA_BODY"])
+extra_body = (
+    eval(
+        os.environ.build()["EXTRA_BODY"]
+        .replace("true", "True")
+        .replace("false", "False")
+    )
+    if os.environ.build().get("EXTRA_BODY")
+    else {}
+)
+
 models = [
     dict(
         type="opencompass.models.domyn_swarm_api.DomynSwarm",
@@ -80,8 +91,7 @@ models = [
             min_p=float(os.environ.build()["MIN_P"]),
             presence_penalty=float(os.environ.build()["PRESENCE_PENALTY"]),
             max_tokens=1024,
-            **json.loads(os.environ.build().get("EXTRA_BODY", "{}")),
-        ),
+        ).update(extra_body),
         timeout=int(os.environ.build()["TIMEOUT"]),
         pred_postprocessor=dict(
             type="opencompass.utils.text_postprocessors.extract_non_reasoning_content"

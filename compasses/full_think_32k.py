@@ -72,6 +72,17 @@ if "{thinking_prompt}" in os.environ.build()["SYSTEM_PROMPT_TEMPLATE"]:
 else:
     system_prompt = ""
 
+print("Extra body:", os.environ.build()["EXTRA_BODY"])
+extra_body = (
+    eval(
+        os.environ.build()["EXTRA_BODY"]
+        .replace("true", "True")
+        .replace("false", "False")
+    )
+    if os.environ.build().get("EXTRA_BODY")
+    else {}
+)
+
 models = [
     dict(
         type="opencompass.models.domyn_swarm_api.DomynSwarm",
@@ -85,9 +96,7 @@ models = [
             top_k=int(os.environ.build()["TOP_K"]),
             min_p=float(os.environ.build()["MIN_P"]),
             presence_penalty=float(os.environ.build()["PRESENCE_PENALTY"]),
-            **json.loads(os.environ.build().get("EXTRA_BODY", "{}")),
-            # max_tokens=32768,
-        ),
+        ).update(extra_body),
         timeout=int(os.environ.build()["TIMEOUT"]),
         pred_postprocessor=dict(
             type="opencompass.utils.text_postprocessors.extract_non_reasoning_content"
