@@ -1,3 +1,5 @@
+import os
+
 from mmengine.config import read_base
 
 with read_base():
@@ -13,5 +15,10 @@ aime25["n"] = 48
 
 datasets = [aime24, aime25]
 
-models[0]["system_prompt"] = "thinking off"
+if "{thinking_prompt}" in os.environ.build()["SYSTEM_PROMPT_TEMPLATE"]:
+    system_prompt = "thinking off"
+else:
+    system_prompt = ""
+
+models[0]["system_prompt"] = system_prompt
 # models[0]["extra_body"]["max_tokens"] = 32768

@@ -1,3 +1,4 @@
+import json
 import os
 
 from mmengine.config import read_base
@@ -66,12 +67,17 @@ size_limit = os.environ.build()["SIZE_LIMIT"]
 for dataset in datasets:
     dataset["reader_cfg"].setdefault("test_range", f"[slice(None,{size_limit},None)]")
 
+if "{thinking_prompt}" in os.environ.build()["SYSTEM_PROMPT_TEMPLATE"]:
+    system_prompt = "thinking on"
+else:
+    system_prompt = ""
+
 models = [
     dict(
         type="opencompass.models.domyn_swarm_api.DomynSwarm",
         abbr=os.environ.build()["MODEL_ABBR"],
         batch_size=int(os.environ.build()["BATCH_SIZE"]),
-        system_prompt="thinking on",
+        system_prompt=system_prompt,
         swarm_name=os.environ.build()["SWARM_NAME"],
         temperature=float(os.environ.build()["TEMPERATURE"]),
         extra_body=dict(
@@ -79,6 +85,7 @@ models = [
             top_k=int(os.environ.build()["TOP_K"]),
             min_p=float(os.environ.build()["MIN_P"]),
             presence_penalty=float(os.environ.build()["PRESENCE_PENALTY"]),
+            **json.loads(os.environ.build().get("EXTRA_BODY", "{}")),
             # max_tokens=16384,
         ),
         timeout=int(os.environ.build()["TIMEOUT"]),

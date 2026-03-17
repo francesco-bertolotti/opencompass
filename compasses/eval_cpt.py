@@ -1,3 +1,4 @@
+import json
 import os
 
 from mmengine.config import read_base
@@ -70,7 +71,7 @@ models = [
         type="opencompass.models.domyn_swarm_api.DomynSwarm",
         abbr=os.environ.build()["MODEL_ABBR"],
         batch_size=int(os.environ.build()["BATCH_SIZE"]),
-        system_prompt="thinking off",
+        system_prompt="",
         swarm_name=os.environ.build()["SWARM_NAME"],
         temperature=float(os.environ.build()["TEMPERATURE"]),
         extra_body=dict(
@@ -79,6 +80,7 @@ models = [
             min_p=float(os.environ.build()["MIN_P"]),
             presence_penalty=float(os.environ.build()["PRESENCE_PENALTY"]),
             max_tokens=1024,
+            **json.loads(os.environ.build().get("EXTRA_BODY", "{}")),
         ),
         timeout=int(os.environ.build()["TIMEOUT"]),
         pred_postprocessor=dict(
