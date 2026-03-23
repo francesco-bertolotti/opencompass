@@ -67,10 +67,9 @@ size_limit = os.environ.build()["SIZE_LIMIT"]
 for dataset in datasets:
     dataset["reader_cfg"].setdefault("test_range", f"[slice(None,{size_limit},None)]")
 
-if "{thinking_prompt}" in os.environ.build()["SYSTEM_PROMPT_TEMPLATE"]:
-    system_prompt = "thinking on"
-else:
-    system_prompt = ""
+system_prompt = (
+    os.environ.build()["SYSTEM_PROMPT_TEMPLATE"].replace("{instruction}", "").strip()
+)
 
 print("Extra body:", os.environ.build()["EXTRA_BODY"])
 extra_body = (

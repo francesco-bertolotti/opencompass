@@ -15,10 +15,9 @@ aime25["n"] = 48
 
 datasets = [aime24, aime25]
 
-if "{thinking_prompt}" in os.environ.build()["SYSTEM_PROMPT_TEMPLATE"]:
-    system_prompt = "thinking off"
-else:
-    system_prompt = ""
+system_prompt = (
+    os.environ.build()["SYSTEM_PROMPT_TEMPLATE"].replace("{instruction}", "").strip()
+)
 
 models[0]["system_prompt"] = system_prompt
 # models[0]["extra_body"]["max_tokens"] = 32768

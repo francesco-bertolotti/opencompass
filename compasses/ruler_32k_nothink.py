@@ -7,9 +7,8 @@ with read_base():
 
 datasets = [*ruler_32k_datasets]
 
-if "{thinking_prompt}" in os.environ.build()["SYSTEM_PROMPT_TEMPLATE"]:
-    system_prompt = "thinking off"
-else:
-    system_prompt = ""
+system_prompt = (
+    os.environ.build()["SYSTEM_PROMPT_TEMPLATE"].replace("{instruction}", "").strip()
+)
 
 models[0]["system_prompt"] = system_prompt
