@@ -92,6 +92,8 @@ models = [
             top_k=int(os.environ.build()["TOP_K"]),
             min_p=float(os.environ.build()["MIN_P"]),
             presence_penalty=float(os.environ.build()["PRESENCE_PENALTY"]),
+            repetition_penalty=float(os.environ.build()["REPETITION_PENALTY"]),
+            frequency_penalty=float(os.environ.build()["FREQUENCY_PENALTY"]),
         ).update(extra_body),
         cache=bool(os.environ.build()["CACHE"]),
         timeout=int(os.environ.build()["TIMEOUT"]),
