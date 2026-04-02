@@ -143,12 +143,10 @@ def parse_args():
         type=str,
         default=None,
     )
-
     parser.add_argument('--station-overwrite',
         help='Whether to overwrite the results at station.',
         action='store_true',
     )
-
     parser.add_argument(
         '--read-from-station',
         help='Whether to save the evaluation results to the '
@@ -160,6 +158,11 @@ def parse_args():
         help='How many runs for one dataset',
         type=int,
         default=1,
+    )
+    parser.add_argument('--run-id',
+        help='The id of the current run',
+        type=str,
+        default=None,
     )
 
     # set srun args
@@ -263,7 +266,10 @@ def main():
         cfg.setdefault('work_dir', os.path.join('outputs', 'default'))
 
     # cfg_time_str defaults to the current time
-    cfg_time_str = dir_time_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+    if args.run_id is not None:
+        cfg_time_str = dir_time_str = args.run_id
+    else:
+       cfg_time_str = dir_time_str = datetime.now().strftime('%Y%m%d_%H%M%S')
     if args.reuse:
         if args.reuse == 'latest':
             if not os.path.exists(cfg.work_dir) or len(os.listdir(
