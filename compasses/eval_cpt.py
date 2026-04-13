@@ -66,7 +66,7 @@ size_limit = os.environ.build()["SIZE_LIMIT"]
 for dataset in datasets:
     dataset["reader_cfg"].setdefault("test_range", f"[slice(None,{size_limit},None)]")
 
-print("Extra body:", os.environ.build()["EXTRA_BODY"])
+# print("Extra body:", os.environ.build()["EXTRA_BODY"])
 extra_body = (
     eval(
         os.environ.build()["EXTRA_BODY"]

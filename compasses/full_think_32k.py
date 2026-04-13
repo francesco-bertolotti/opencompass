@@ -71,7 +71,7 @@ system_prompt = (
     os.environ.build()["SYSTEM_PROMPT_TEMPLATE"].replace("{instruction}", "").strip()
 )
 
-print("Extra body:", os.environ.build()["EXTRA_BODY"])
+# print("Extra body:", os.environ.build()["EXTRA_BODY"])
 extra_body = (
     eval(
         os.environ.build()["EXTRA_BODY"]

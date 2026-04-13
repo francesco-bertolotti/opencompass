@@ -44,7 +44,7 @@ aime2025_datasets[0].eval_cfg.evaluator = dict(  # type: ignore
     type="opencompass.evaluator.MATHVerifyEvaluator"
 )
 
-print("tokenizer model for ruler:", os.environ["TOKENIZER_MODEL"])
+# print("tokenizer model for ruler:", os.environ["TOKENIZER_MODEL"])
 
 datasets = [
     *aime2024_datasets,
@@ -68,7 +68,7 @@ system_prompt = (
     os.environ.build()["SYSTEM_PROMPT_TEMPLATE"].replace("{instruction}", "").strip()
 )
 
-print("Extra body:", os.environ.build()["EXTRA_BODY"])
+# print("Extra body:", os.environ.build()["EXTRA_BODY"])
 extra_body = (
     eval(
         os.environ.build()["EXTRA_BODY"]
