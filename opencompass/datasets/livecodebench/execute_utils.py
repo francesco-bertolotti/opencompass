@@ -69,8 +69,7 @@ def codeexecute_check_correctness(check_program, timeout=3):
     :param completion_id: an optional completion ID so we can match the results
         later even if execution finishes asynchronously.
     """
-    manager = multiprocessing.Manager()
-    result = manager.list()
+    result = multiprocessing.Queue()
 
     p = multiprocessing.Process(target=unsafe_execute,
                                 args=(check_program, result, timeout))
@@ -79,10 +78,10 @@ def codeexecute_check_correctness(check_program, timeout=3):
     if p.is_alive():
         p.kill()
 
-    if not result:
-        result.append('timed out')
+    if result.empty():
+        return False
 
-    return result[0] == 'passed'
+    return result.get() == 'passed'
 
 
 def unsafe_execute(check_program, result, timeout):
@@ -107,11 +106,11 @@ def unsafe_execute(check_program, result, timeout):
             with swallow_io():
                 with time_limit(timeout):
                     exec(check_program, exec_globals)
-            result.append('passed')
+            result.put('passed')
         except TimeoutException:
-            result.append('timed out')
+            result.put('timed out')
         except BaseException as e:
-            result.append(f'failed: {e}')
+            result.put(f'failed: {e}')
 
         # Needed for cleaning up.
         shutil.rmtree = rmtree

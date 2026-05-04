@@ -52,6 +52,8 @@ class DomynSwarm(BaseAPIModel):
                 )
         if self.endpoint.endswith("v1/v1"):
             self.endpoint = self.endpoint.replace("/v1", "", 1)
+        if not self.endpoint.endswith("/v1"):
+            self.endpoint = self.endpoint.rstrip("/") + "/v1"
 
         self.cache = cache
 
@@ -109,7 +111,13 @@ class DomynSwarm(BaseAPIModel):
                         response = await self.client.chat.completions.create(**request)
                         cache[key] = response
 
-                return response.choices[0].message.content
+                message = response.choices[0].message
+                reasoning = getattr(message, "reasoning", None) or ""
+                content = message.content or ""
+                if reasoning:
+                    return f"<think>{reasoning}</think>{content}"
+                return content
+
             except openai.BadRequestError:
                 traceback.print_exc()
                 return ""

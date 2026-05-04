@@ -25,8 +25,8 @@ def _temp_run(sample, generation, debug, result, metadata_list, timeout):
                              test=generation,
                              debug=debug,
                              timeout=timeout)
-    result.append(res)
-    metadata_list.append(metadata)
+    result.put(res)
+    metadata_list.put(metadata)
 
 
 def codegen_check_correctness(sample, generation, timeout, debug=True):
@@ -36,9 +36,8 @@ def codegen_check_correctness(sample, generation, timeout, debug=True):
     timeouts inside `run_test`
     """
 
-    manager = multiprocessing.Manager()
-    result = manager.list()
-    metadata_list = manager.list()
+    result = multiprocessing.Queue()
+    metadata_list = multiprocessing.Queue()
     p = multiprocessing.Process(
         target=_temp_run,
         args=(sample, generation, debug, result, metadata_list, timeout),
@@ -48,14 +47,18 @@ def codegen_check_correctness(sample, generation, timeout, debug=True):
            len(json.loads(sample['input_output'])['inputs']) + 5)
     if p.is_alive():
         p.kill()
-    if not result:
+    if result.empty():
         in_outs = json.loads(sample['input_output'])
         # consider that all tests failed
-        result = [[-1 for i in range(len(in_outs['inputs']))]]
+        result_val = [-1 for i in range(len(in_outs['inputs']))]
+        metadata_val = {}
         if debug:
             logger = get_logger()
             logger.info('global timeout')
-    return result[0], metadata_list[0]
+    else:
+        result_val = result.get()
+        metadata_val = metadata_list.get() if not metadata_list.empty() else {}
+    return result_val, metadata_val
 
 
 def evaluate_generations_by_problem(problem_generations: list, sample: list,

@@ -199,7 +199,7 @@ def execution(programs, task_id, timeout):
     control the process.
     """
 
-    def _execution(programs, timeout):
+    def _execution(programs, timeout, key):
         try:
             # Add exec globals to prevent the exec to raise
             # unnecessary NameError for correct answer
@@ -207,28 +207,27 @@ def execution(programs, task_id, timeout):
             with swallow_io():
                 with time_limit(timeout):
                     exec(programs, exec_globals)
-            key.append('pass')
+            key.put('pass')
         except TimeOutException:
-            key.append('timeout')
+            key.put('timeout')
         except AssertionError:
-            key.append('wrong_answer')
+            key.put('wrong_answer')
         except BaseException as e:
             print(e)
-            key.append('failed')
+            key.put('failed')
 
-    manager = multiprocessing.Manager()
-    key = manager.list()
+    key = multiprocessing.Queue()
     # `signal` cannot be used in child thread, therefore, we
     # need to create a process in the thread.
     p = multiprocessing.Process(target=_execution,
-                                args=(programs, timeout - 1))
+                                args=(programs, timeout - 1, key))
     p.start()
     p.join(timeout=timeout)
     if p.is_alive():
         p.kill()
         # key might not have value if killed
         return task_id, 'timeout'
-    return task_id, key[0]
+    return task_id, key.get()
 
 
 class LCPassKEvaluator(LCEvaluator):

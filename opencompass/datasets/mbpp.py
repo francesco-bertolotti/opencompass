@@ -396,14 +396,14 @@ def _execution(programs, timeout, key):
         with swallow_io():
             with time_limit(timeout):
                 exec(programs, exec_globals)
-        key.append('pass')
+        key.put('pass')
     except TimeOutException:
-        key.append('timeout')
+        key.put('timeout')
     except AssertionError:
-        key.append('wrong_answer')
+        key.put('wrong_answer')
     except BaseException as e:
         print(e)
-        key.append('failed')
+        key.put('failed')
 
 
 def execution(programs, task_id, timeout):
@@ -422,8 +422,7 @@ def execution(programs, task_id, timeout):
     control the process.
     """
 
-    manager = multiprocessing.Manager()
-    key = manager.list()
+    key = multiprocessing.Queue()
     # `signal` cannot be used in child thread, therefore, we
     # need to create a process in the thread.
     p = multiprocessing.Process(target=_execution,
@@ -434,7 +433,7 @@ def execution(programs, task_id, timeout):
         p.kill()
         # key might not have value if killed
         return task_id, 'timeout'
-    return task_id, key[0]
+    return task_id, key.get()
 
 
 class MBPPPassKEvaluator(MBPPEvaluator):

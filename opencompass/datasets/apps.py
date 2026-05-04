@@ -172,23 +172,24 @@ class APPSEvaluator(BaseEvaluator):
         """
 
         def _temp_run(sample, generation, debug, result):
-            result.append(run_test(sample, test=generation, debug=debug))
+            result.put(run_test(sample, test=generation, debug=debug))
 
-        manager = multiprocessing.Manager()
-        result = manager.list()
+        result = multiprocessing.Queue()
         p = multiprocessing.Process(target=_temp_run,
                                     args=(sample, generation, debug, result))
         p.start()
         p.join(timeout=timeout + 1)
         if p.is_alive():
             p.kill()
-        if not result:
+        if result.empty():
             in_outs = json.loads(sample['input_output'])
             # consider that all tests failed
-            result = [[-1 for i in range(len(in_outs['inputs']))]]
+            result_val = [-1 for i in range(len(in_outs['inputs']))]
             if debug:
                 print('global timeout')
-        return result[0]
+        else:
+            result_val = result.get()
+        return result_val
 
     def evaluate_generations(self,
                              generations,
