@@ -12,6 +12,7 @@ with read_base():
         humaneval_datasets,
         LCB_datasets,
         mgsm_datasets,
+        mbpp_datasets,
     )
 
 datasets = [
@@ -20,4 +21,5 @@ datasets = [
     *humaneval_datasets,
     *LCB_datasets,
     *mgsm_datasets,
+    *mbpp_datasets,
 ]
