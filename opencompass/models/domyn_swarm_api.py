@@ -105,9 +105,9 @@ class DomynSwarm(BaseAPIModel):
 
                     if key in cache:
                         response = cache[key]
-                        print("Cache hit")
+                        # print("Cache hit")
                     else:
-                        print("Cache miss")
+                        # print("Cache miss")
                         response = await self.client.chat.completions.create(**request)
                         cache[key] = response
 
