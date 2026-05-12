@@ -36,15 +36,17 @@ class BaseAPIModel(BaseModel):
 
     is_api: bool = True
 
-    def __init__(self,
-                 path: str,
-                 query_per_second: int = 1,
-                 rpm_verbose: bool = False,
-                 retry: int = 2,
-                 max_seq_len: int = 2048,
-                 meta_template: Optional[Dict] = None,
-                 generation_kwargs: Dict = dict(),
-                 verbose: bool = False):
+    def __init__(
+        self,
+        path: str,
+        query_per_second: int = 1,
+        rpm_verbose: bool = False,
+        retry: int = 2,
+        max_seq_len: int | None = None,
+        meta_template: Optional[Dict] = None,
+        generation_kwargs: Dict = dict(),
+        verbose: bool = False,
+    ):
         self.path = path
         self.max_seq_len = max_seq_len
         self.meta_template = meta_template
@@ -56,9 +58,12 @@ class BaseAPIModel(BaseModel):
         self.generation_kwargs = generation_kwargs
         self.verbose = verbose
 
+        assert self.max_seq_len is not None, (
+            "max_seq_len must be specified for API models."
+        )
+
     @abstractmethod
-    def generate(self, inputs: List[PromptType],
-                 max_out_len: int) -> List[str]:
+    def generate(self, inputs: List[PromptType], max_out_len: int) -> List[str]:
         """Generate results given a list of inputs.
 
         Args:
@@ -70,9 +75,11 @@ class BaseAPIModel(BaseModel):
         Returns:
             List[str]: A list of generated strings.
         """
-        raise NotImplementedError(f'{self.__class__.__name__} does not support'
-                                  ' gen-based evaluation yet, try ppl-based '
-                                  'instead.')
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support"
+            " gen-based evaluation yet, try ppl-based "
+            "instead."
+        )
 
     def flush(self):
         """Ensure simultaneous emptying of stdout and stderr when concurrent
@@ -82,7 +89,7 @@ class BaseAPIModel(BaseModel):
         it is crucial to clear internal data for examination or prevent log
         loss in case of system failures."
         """
-        if hasattr(self, 'tokens'):
+        if hasattr(self, "tokens"):
             sys.stdout.flush()
             sys.stderr.flush()
 
@@ -92,7 +99,7 @@ class BaseAPIModel(BaseModel):
         This behavior will fall back to wait with query_per_second if there are
         no concurrent resources.
         """
-        if hasattr(self, 'tokens'):
+        if hasattr(self, "tokens"):
             self.tokens.acquire()
         else:
             self.wait()
@@ -103,13 +110,13 @@ class BaseAPIModel(BaseModel):
         This behavior will fall back to do nothing if there are no concurrent
         resources.
         """
-        if hasattr(self, 'tokens'):
+        if hasattr(self, "tokens"):
             self.tokens.release()
 
     @abstractmethod
-    def get_ppl(self,
-                inputs: List[PromptType],
-                mask_length: Optional[List[int]] = None) -> List[float]:
+    def get_ppl(
+        self, inputs: List[PromptType], mask_length: Optional[List[int]] = None
+    ) -> List[float]:
         """Get perplexity scores given a list of inputs.
 
         Args:
@@ -123,9 +130,11 @@ class BaseAPIModel(BaseModel):
         Returns:
             List[float]: A list of perplexity scores.
         """
-        raise NotImplementedError(f'{self.__class__.__name__} does not support'
-                                  ' ppl-based evaluation yet, try gen-based '
-                                  'instead.')
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support"
+            " ppl-based evaluation yet, try gen-based "
+            "instead."
+        )
 
     def get_token_len(self, prompt: str) -> int:
         """Get lengths of the tokenized string. Only English and Chinese
@@ -139,8 +148,8 @@ class BaseAPIModel(BaseModel):
             int: Length of the input tokens
         """
 
-        english_parts = re.findall(r'[A-Za-z0-9]+', prompt)
-        chinese_parts = re.findall(r'[\u4e00-\u9FFF]+', prompt)
+        english_parts = re.findall(r"[A-Za-z0-9]+", prompt)
+        chinese_parts = re.findall(r"[\u4e00-\u9FFF]+", prompt)
 
         # Count English words
         english_count = sum(len(part.split()) for part in english_parts)
@@ -172,26 +181,25 @@ class APITemplateParser:
         self.meta_template = meta_template
         # Check meta template
         if meta_template:
-            assert 'round' in meta_template, 'round is required in meta' \
-                ' template'
-            assert isinstance(meta_template['round'], list)
-            keys_to_check = ['round']
+            assert "round" in meta_template, "round is required in meta template"
+            assert isinstance(meta_template["round"], list)
+            keys_to_check = ["round"]
 
-            if 'reserved_roles' in meta_template:
-                assert isinstance(meta_template['reserved_roles'], list)
-                keys_to_check.append('reserved_roles')
+            if "reserved_roles" in meta_template:
+                assert isinstance(meta_template["reserved_roles"], list)
+                keys_to_check.append("reserved_roles")
 
             self.roles: Dict[str, dict] = dict()  # maps role name to config
             for meta_key in keys_to_check:
                 for item in meta_template[meta_key]:
                     assert isinstance(item, (str, dict))
                     if isinstance(item, dict):
-                        assert item['role'] not in self.roles, \
-                            'role in meta prompt must be unique!'
-                        self.roles[item['role']] = item.copy()
+                        assert item["role"] not in self.roles, (
+                            "role in meta prompt must be unique!"
+                        )
+                        self.roles[item["role"]] = item.copy()
 
-    def parse_template(self, prompt_template: PromptType,
-                       mode: str) -> PromptType:
+    def parse_template(self, prompt_template: PromptType, mode: str) -> PromptType:
         """Parse the intermidate prompt template, and wrap it with meta
         template if applicable. When the meta template is set and the input is
         a PromptList, the return value will be a PromptList containing the full
@@ -214,11 +222,10 @@ class APITemplateParser:
         if not isinstance(prompt_template, (str, PromptList)):
             return [self.parse_template(p, mode=mode) for p in prompt_template]
 
-        assert mode in ['ppl', 'gen']
+        assert mode in ["ppl", "gen"]
         if isinstance(prompt_template, str):
             return prompt_template
         if self.meta_template:
-
             prompt = PromptList()
             # Whether to keep generating the prompt
             generate = True
@@ -231,75 +238,78 @@ class APITemplateParser:
                 if isinstance(item, str):
                     if item.strip():
                         # TODO: logger
-                        warnings.warn('Non-empty string in prompt template '
-                                      'will be ignored in API models.')
-                elif isinstance(item, dict) and 'section' in item:
-                    if item['pos'] == 'end':
+                        warnings.warn(
+                            "Non-empty string in prompt template "
+                            "will be ignored in API models."
+                        )
+                elif isinstance(item, dict) and "section" in item:
+                    if item["pos"] == "end":
                         section_name, start_idx = section_stack.pop(-1)
-                        assert section_name == item['section']
-                        if section_name in ['round', 'ice']:
+                        assert section_name == item["section"]
+                        if section_name in ["round", "ice"]:
                             dialogue = prompt_template[start_idx:i]
                             round_ranges = self._split_rounds(
-                                dialogue, self.meta_template['round'])
+                                dialogue, self.meta_template["round"]
+                            )
                             # Consider inserting multiple round examples into
                             # template
                             for i in range(len(round_ranges) - 1):
                                 start = round_ranges[i]
                                 end = round_ranges[i + 1]
                                 round_template = dialogue[start:end]
-                                role_dict = self._update_role_dict(
-                                    round_template)
+                                role_dict = self._update_role_dict(round_template)
                                 api_prompts, generate = self._prompt2api(
-                                    self.meta_template['round'],
+                                    self.meta_template["round"],
                                     role_dict,
                                     # Start generating only when the mode is in
                                     # generation and the template reaches the
                                     # last round
-                                    for_gen=mode == 'gen'
-                                    and section_name == 'round'
-                                    and i == len(round_ranges) - 2)
+                                    for_gen=mode == "gen"
+                                    and section_name == "round"
+                                    and i == len(round_ranges) - 2,
+                                )
                                 prompt += api_prompts
-                    elif item['pos'] == 'begin':
-                        assert item['section'] in [
-                            'begin', 'round', 'end', 'ice'
-                        ]
-                        section_stack.append((item['section'], i + 1))
+                    elif item["pos"] == "begin":
+                        assert item["section"] in ["begin", "round", "end", "ice"]
+                        section_stack.append((item["section"], i + 1))
                     else:
-                        raise ValueError(f'Invalid pos {item["pos"]}')
-                elif section_stack[-1][0] in ['begin', 'end']:
+                        raise ValueError(f"Invalid pos {item['pos']}")
+                elif section_stack[-1][0] in ["begin", "end"]:
                     role_dict = self._update_role_dict(item)
                     api_prompts, generate = self._prompt2api(
-                        item, role_dict, for_gen=mode == 'gen')
+                        item, role_dict, for_gen=mode == "gen"
+                    )
                     prompt.append(api_prompts)
 
             # merge the consecutive prompts assigned to the same role
             new_prompt = PromptList([prompt[0]])
-            last_role = prompt[0]['role']
+            last_role = prompt[0]["role"]
             for item in prompt[1:]:
-                if item['role'] == last_role:
-                    new_prompt[-1]['prompt'] += '\n' + item['prompt']
+                if item["role"] == last_role:
+                    new_prompt[-1]["prompt"] += "\n" + item["prompt"]
                 else:
-                    last_role = item['role']
+                    last_role = item["role"]
                     new_prompt.append(item)
             prompt = new_prompt
 
-            if self.meta_template.get('begin', None):
-                prompt.insert(0, self.meta_template['begin'])
+            if self.meta_template.get("begin", None):
+                prompt.insert(0, self.meta_template["begin"])
 
         else:
             # in case the model does not have any meta template
-            prompt = ''
-            last_sep = ''
+            prompt = ""
+            last_sep = ""
             for item in prompt_template:
-                if isinstance(item, dict) and set(['section', 'pos']) == set(
-                        item.keys()):
+                if isinstance(item, dict) and set(["section", "pos"]) == set(
+                    item.keys()
+                ):
                     continue
                 if isinstance(item, str):
                     if item:
                         prompt += last_sep + item
-                elif item.get('prompt', ''):
-                    prompt += last_sep + item.get('prompt', '')
-                last_sep = '\n'
+                elif item.get("prompt", ""):
+                    prompt += last_sep + item.get("prompt", "")
+                last_sep = "\n"
         return prompt
 
     def _update_role_dict(self, prompts: Union[List, str]) -> Dict[str, Dict]:
@@ -311,18 +321,22 @@ class APITemplateParser:
             prompts = [prompts]
         for prompt in prompts:
             if isinstance(prompt, dict):
-                role = prompt['role']
+                role = prompt["role"]
                 if role not in self.roles:
-                    role = prompt.get('fallback_role', None)
+                    role = prompt.get("fallback_role", None)
                     if not role:
-                        print(f'{prompt} neither has an appropriate role nor '
-                              'a fallback role.')
+                        print(
+                            f"{prompt} neither has an appropriate role nor "
+                            "a fallback role."
+                        )
                 role_dict[role].update(prompt)
         return role_dict
 
     def _split_rounds(
-            self, prompt_template: List[Union[str, Dict]],
-            single_round_template: List[Union[str, Dict]]) -> List[int]:
+        self,
+        prompt_template: List[Union[str, Dict]],
+        single_round_template: List[Union[str, Dict]],
+    ) -> List[int]:
         """Split the prompt template into rounds, based on single round
         template.
 
@@ -331,7 +345,7 @@ class APITemplateParser:
         template.
         """
         role_idxs = {
-            role_cfg['role']: i
+            role_cfg["role"]: i
             for i, role_cfg in enumerate(single_round_template)
             if not isinstance(role_cfg, str)
         }
@@ -340,23 +354,27 @@ class APITemplateParser:
         for idx, template in enumerate(prompt_template):
             if isinstance(template, str):
                 continue
-            role_idx = role_idxs.get(template['role'], None)
+            role_idx = role_idxs.get(template["role"], None)
             if role_idx is None:
                 try:
-                    role_idx = role_idxs[template['fallback_role']]
+                    role_idx = role_idxs[template["fallback_role"]]
                 except KeyError:
-                    raise KeyError(f'{template} neither has an appropriate '
-                                   'role nor a fallback role.')
+                    raise KeyError(
+                        f"{template} neither has an appropriate "
+                        "role nor a fallback role."
+                    )
             if role_idx <= last_role_idx:
                 cutoff_idxs.append(idx)
             last_role_idx = role_idx
         cutoff_idxs.append(len(prompt_template))
         return cutoff_idxs
 
-    def _prompt2api(self,
-                    prompts: Union[List, str],
-                    role_dict: Dict[str, Dict],
-                    for_gen: bool = False) -> Tuple[List, bool]:
+    def _prompt2api(
+        self,
+        prompts: Union[List, str],
+        role_dict: Dict[str, Dict],
+        for_gen: bool = False,
+    ) -> Tuple[List, bool]:
         """Convert the prompts to a API-style prompts, given an updated
         role_dict.
 
@@ -381,21 +399,20 @@ class APITemplateParser:
         res = []
         for prompt in prompts:
             if isinstance(prompt, str):
-                raise TypeError('Mixing str without explicit role is not '
-                                'allowed in API models!')
+                raise TypeError(
+                    "Mixing str without explicit role is not allowed in API models!"
+                )
             else:
-                api_role, cont = self._role2api_role(prompt, role_dict,
-                                                     for_gen)
+                api_role, cont = self._role2api_role(prompt, role_dict, for_gen)
                 if api_role:
                     res.append(api_role)
                 if not cont:
                     break
         return res, cont
 
-    def _role2api_role(self,
-                       role_prompt: Dict,
-                       role_dict: Dict[str, Dict],
-                       for_gen: bool = False) -> Tuple[Dict, bool]:
+    def _role2api_role(
+        self, role_prompt: Dict, role_dict: Dict[str, Dict], for_gen: bool = False
+    ) -> Tuple[Dict, bool]:
         """Convert a role prompt to a string, given an updated role_dict.
 
         Args:
@@ -410,16 +427,16 @@ class APITemplateParser:
             conversion should be proceeded.
         """
         merged_prompt = role_dict.get(
-            role_prompt['role'],
-            role_dict.get(role_prompt.get('fallback_role')))
+            role_prompt["role"], role_dict.get(role_prompt.get("fallback_role"))
+        )
         # res_api_prompt = dict(type='', )
-        if for_gen and merged_prompt.get('generate', False):
+        if for_gen and merged_prompt.get("generate", False):
             return None, False
         res = {}
-        res['role'] = merged_prompt['api_role']
-        res['prompt'] = merged_prompt.get('begin', '')
-        res['prompt'] += merged_prompt.get('prompt', '')
-        res['prompt'] += merged_prompt.get('end', '')
+        res["role"] = merged_prompt["api_role"]
+        res["prompt"] = merged_prompt.get("begin", "")
+        res["prompt"] += merged_prompt.get("prompt", "")
+        res["prompt"] += merged_prompt.get("end", "")
         return res, True
 
 
@@ -459,4 +476,4 @@ class TokenBucket:
                 else:
                     break
             self._request_queue.put(cur_time)
-            self.logger.info(f'Current RPM {self._request_queue.qsize()}.')
+            self.logger.info(f"Current RPM {self._request_queue.qsize()}.")

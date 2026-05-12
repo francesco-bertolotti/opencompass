@@ -1,4 +1,3 @@
-import json
 import os
 
 from mmengine.config import read_base
@@ -92,18 +91,18 @@ models = [
         model=os.environ.build()["MODEL_PATH"],
         endpoint=os.environ.build()["ENDPOINT"],
         temperature=float(os.environ.build()["TEMPERATURE"]),
-        extra_body=dict(
-            top_p=float(os.environ.build()["TOP_P"]),
-            top_k=int(os.environ.build()["TOP_K"]),
-            min_p=float(os.environ.build()["MIN_P"]),
-            presence_penalty=float(os.environ.build()["PRESENCE_PENALTY"]),
-            repetition_penalty=float(os.environ.build()["REPETITION_PENALTY"]),
-            frequency_penalty=float(os.environ.build()["FREQUENCY_PENALTY"]),
-        ).update(extra_body),
-        timeout=int(os.environ.build()["TIMEOUT"]),
-        pred_postprocessor=dict(
-            type="opencompass.utils.text_postprocessors.extract_non_reasoning_content"
-        ),  # TBT
+        extra_body={
+            **dict(
+                top_p=float(os.environ.build()["TOP_P"]),
+                top_k=int(os.environ.build()["TOP_K"]),
+                min_p=float(os.environ.build()["MIN_P"]),
+                presence_penalty=float(os.environ.build()["PRESENCE_PENALTY"]),
+                repetition_penalty=float(os.environ.build()["REPETITION_PENALTY"]),
+                frequency_penalty=float(os.environ.build()["FREQUENCY_PENALTY"]),
+            ),
+            **extra_body,
+        },
+        max_tokens=int(os.environ.build()["MAX_TOKENS"]),
     )
 ]
 

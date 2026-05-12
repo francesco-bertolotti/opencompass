@@ -7,6 +7,8 @@ import asyncio
 import typing
 import openai
 import json
+import os
+from transformers import AutoTokenizer
 from domyn_swarm import DomynLLMSwarm
 
 from opencompass.registry import MODELS
@@ -28,14 +30,21 @@ class DomynSwarm(BaseAPIModel):
         temperature: float = 0.0,
         extra_body: typing.Optional[typing.Dict[str, typing.Any]] = dict(),
         timeout: int = 1200,
-        cache: str = "/tmp/opencompass_cache",
+        cache: str = os.path.join(
+            os.environ.get("TMPDIR", "/tmp"), "opencompass_cache"
+        ),
+        max_tokens: int | None = None,
     ):
-        super().__init__(path="")
+        super().__init__(path="", max_seq_len=max_tokens)
         self.system_prompt = system_prompt
         self.swarm_name = swarm_name
         self.temperature = temperature
         self.extra_body = extra_body
-
+        self.max_tokens = max_tokens
+        tokenizer_model = os.environ.get("TOKENIZER_MODEL")
+        self.tokenizer = (
+            AutoTokenizer.from_pretrained(tokenizer_model) if tokenizer_model else None
+        )
         try:
             swarm = DomynLLMSwarm.from_state(self.swarm_name)
             self.endpoint = swarm.endpoint
@@ -93,12 +102,34 @@ class DomynSwarm(BaseAPIModel):
             """Asynchronously complete the prompt using the OpenAI API."""
             try:
                 with diskcache.Cache(self.cache) as cache:
+                    if self.tokenizer is not None:
+                        formatted = self.tokenizer.apply_chat_template(
+                            messages, tokenize=False, add_generation_prompt=True
+                        )
+                        prompt_tokens = len(self.tokenizer.encode(formatted, add_special_tokens=False))
+                    else:
+                        prompt_tokens = (
+                            sum(len(m.get("content", "")) for m in messages) // 4
+                        )
+                    available_tokens = max(
+                        1, (self.max_seq_len or 32768) - prompt_tokens - 1
+                    )
+                    print(f"Prompt has approx {prompt_tokens} tokens.")
+                    print(
+                        f"Max seq len is {self.max_seq_len}, so available tokens for response is {available_tokens}."
+                    )
                     request = {
                         "model": self.model,
                         "messages": messages,
                         "temperature": self.temperature,
                         "extra_body": self.extra_body,
+                        "max_tokens": min(
+                            self.max_tokens or max_out_len, available_tokens
+                        ),
                     }
+                    print(
+                        f"Request: {json.dumps(request['extra_body'], indent=2)}, max_tokens: {request['max_tokens']}"
+                    )
                     key = hashlib.sha256(
                         json.dumps(request, sort_keys=True).encode()
                     ).hexdigest()
@@ -109,8 +140,13 @@ class DomynSwarm(BaseAPIModel):
                     else:
                         # print("Cache miss")
                         response = await self.client.chat.completions.create(**request)
-                        cache[key] = response
-
+                        try:
+                            cache[key] = response
+                        except OSError:
+                            logger.warning(
+                                "Failed to write to cache (disk full?), continuing without caching."
+                            )
+                print(f"Response: {response}")
                 message = response.choices[0].message
                 reasoning = getattr(message, "reasoning", None) or ""
                 content = message.content or ""

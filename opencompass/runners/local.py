@@ -236,8 +236,9 @@ class LocalRunner(BaseRunner):
             mmengine.mkdir_or_exist(osp.split(out_path)[0])
             stdout = open(out_path, "w", encoding="utf-8")
 
+            env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
             result = subprocess.run(
-                cmd, shell=True, text=True, stdout=stdout, stderr=stdout
+                cmd, shell=True, text=True, stdout=stdout, stderr=stdout, env=env
             )
 
             if result.returncode != 0:
