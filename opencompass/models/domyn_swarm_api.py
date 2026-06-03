@@ -87,6 +87,8 @@ class DomynSwarm(BaseAPIModel):
         max_out_len: int = 512,
     ) -> list[str]:
 
+        _debug = os.environ.get("DEBUG_INFERENCE", "0") == "1"
+
         @tenacity.retry(
             wait=tenacity.wait_exponential(multiplier=1, min=60, max=60),
             stop=tenacity.stop_after_attempt(180),
@@ -106,7 +108,11 @@ class DomynSwarm(BaseAPIModel):
                         formatted = self.tokenizer.apply_chat_template(
                             messages, tokenize=False, add_generation_prompt=True
                         )
-                        prompt_tokens = len(self.tokenizer.encode(formatted, add_special_tokens=False))
+                        prompt_tokens = len(
+                            self.tokenizer.encode(formatted, add_special_tokens=False)
+                        )
+                        if _debug:
+                            print(f"[debug] Formatted prompt:\n{formatted}")
                     else:
                         prompt_tokens = (
                             sum(len(m.get("content", "")) for m in messages) // 4
@@ -114,10 +120,13 @@ class DomynSwarm(BaseAPIModel):
                     available_tokens = max(
                         1, (self.max_seq_len or 32768) - prompt_tokens - 1
                     )
-                    print(f"Prompt has approx {prompt_tokens} tokens.")
-                    print(
-                        f"Max seq len is {self.max_seq_len}, so available tokens for response is {available_tokens}."
-                    )
+                    if _debug:
+                        print(
+                            f"[debug] Messages sent to model:\n{json.dumps(messages, indent=2, ensure_ascii=False)}"
+                        )
+                        print(
+                            f"[debug] Prompt has approx {prompt_tokens} tokens. Available for response: {available_tokens}."
+                        )
                     request = {
                         "model": self.model,
                         "messages": messages,
@@ -127,18 +136,20 @@ class DomynSwarm(BaseAPIModel):
                             self.max_tokens or max_out_len, available_tokens
                         ),
                     }
-                    print(
-                        f"Request: {json.dumps(request['extra_body'], indent=2)}, max_tokens: {request['max_tokens']}"
-                    )
+                    if _debug:
+                        print(
+                            f"[debug] Full request: model={request['model']}  "
+                            f"temperature={request['temperature']}  "
+                            f"max_tokens={request['max_tokens']}  "
+                            f"extra_body={json.dumps(request['extra_body'], indent=2)}"
+                        )
                     key = hashlib.sha256(
                         json.dumps(request, sort_keys=True).encode()
                     ).hexdigest()
 
                     if key in cache:
                         response = cache[key]
-                        # print("Cache hit")
                     else:
-                        # print("Cache miss")
                         response = await self.client.chat.completions.create(**request)
                         try:
                             cache[key] = response
@@ -146,7 +157,8 @@ class DomynSwarm(BaseAPIModel):
                             logger.warning(
                                 "Failed to write to cache (disk full?), continuing without caching."
                             )
-                print(f"Response: {response}")
+                if _debug:
+                    print(f"[debug] Raw response: {response}")
                 message = response.choices[0].message
                 reasoning = getattr(message, "reasoning", None) or ""
                 content = message.content or ""
