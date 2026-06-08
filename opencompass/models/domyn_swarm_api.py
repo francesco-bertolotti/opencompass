@@ -34,6 +34,7 @@ class DomynSwarm(BaseAPIModel):
             os.environ.get("TMPDIR", "/tmp"), "opencompass_cache"
         ),
         max_tokens: int | None = None,
+        max_connections: int | None = None,
     ):
         super().__init__(path="", max_seq_len=max_tokens)
         self.system_prompt = system_prompt
@@ -65,6 +66,11 @@ class DomynSwarm(BaseAPIModel):
             self.endpoint = self.endpoint.rstrip("/") + "/v1"
 
         self.cache = cache
+        # Semaphore caps concurrent in-flight requests to the vLLM server.
+        # Prevents head-of-line blocking when long (math/AIME) and short (MMLU)
+        # prompts run together. Reads MAX_CONNECTIONS env var set by the driver.
+        _mc = max_connections or int(os.environ.get("MAX_CONNECTIONS", "8"))
+        self._sem = asyncio.Semaphore(_mc)
 
         self.client = openai.AsyncOpenAI(
             base_url=f"{self.endpoint}",
@@ -90,8 +96,8 @@ class DomynSwarm(BaseAPIModel):
         _debug = os.environ.get("DEBUG_INFERENCE", "0") == "1"
 
         @tenacity.retry(
-            wait=tenacity.wait_exponential(multiplier=1, min=60, max=60),
-            stop=tenacity.stop_after_attempt(180),
+            wait=tenacity.wait_exponential(multiplier=1, min=10, max=60),
+            stop=tenacity.stop_after_attempt(10),
             retry=tenacity.retry_if_exception_type(
                 (openai.APITimeoutError, openai.InternalServerError)
             ),
@@ -170,9 +176,11 @@ class DomynSwarm(BaseAPIModel):
                 traceback.print_exc()
                 return ""
 
-        return await asyncio.gather(
-            *[complete(self.format(prompt)) for prompt in prompts]
-        )
+        async def rate_limited(prompt):
+            async with self._sem:
+                return await complete(self.format(prompt))
+
+        return await asyncio.gather(*[rate_limited(p) for p in prompts])
 
     def format(self, input: typing.Union[opencompass.utils.prompt.PromptList, str]):
         """Format the input into a message structure suitable for the API."""
