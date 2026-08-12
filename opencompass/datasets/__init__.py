@@ -53,6 +53,7 @@ from .ds1000_interpreter import *  # noqa: F401, F403
 from .Earth_Silver import *  # noqa: F401, F403
 from .eese.eese import *  # noqa: F401, F403
 from .eprstmt import *  # noqa: F401, F403
+from .eu_math_olymp import *  # noqa: F401, F403
 from .FinanceIQ import *  # noqa: F401, F403
 from .flores import *  # noqa: F401, F403
 from .game24 import *  # noqa: F401, F403
@@ -61,6 +62,7 @@ from .GaokaoBench import *  # noqa: F401, F403
 from .generic import *  # noqa: F401, F403
 from .govrepcrs import *  # noqa: F401, F403
 from .gpqa import *  # noqa: F401, F403
+from .grams import *  # noqa: F401, F403
 from .gsm8k import *  # noqa: F401, F403
 from .gsm_hard import *  # noqa: F401, F403
 from .healthbench.healthbench import *  # noqa: F401, F403
@@ -105,8 +107,10 @@ from .mbpp import *  # noqa: F401, F403
 from .mbpp_pro import *  # noqa: F401, F403
 from .medbench import *  # noqa: F401, F403
 from .Medbullets import *  # noqa: F401, F403
-from .MedCalc_Bench import MedCalc_BenchDataset  # noqa: F401
-from .MedCalc_Bench import MedCalcOfficial_Evaluator  # noqa: F401
+from .MedCalc_Bench import (
+    MedCalc_BenchDataset,  # noqa: F401
+    MedCalcOfficial_Evaluator,  # noqa: F401
+)
 from .medmcqa import *  # noqa: F401, F403
 from .MedQA import *  # noqa: F401, F403
 from .MedXpertQA import *  # noqa: F401, F403
@@ -179,4 +183,3 @@ from .xcopa import *  # noqa: F401, F403
 from .xiezhi import XiezhiDataset, XiezhiRetriever  # noqa: F401, F403
 from .xlsum import *  # noqa: F401, F403
 from .xsum import *  # noqa: F401, F403
-from .grams import *  # noqa: F401, F403
