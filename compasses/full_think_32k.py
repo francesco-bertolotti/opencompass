@@ -103,23 +103,12 @@ models = [
             **extra_body,
         },
         max_tokens=int(os.environ.build()["MAX_TOKENS"]),
-        # Job-private response cache. The DomynSwarm default is a single fixed
-        # "$TMPDIR/opencompass_cache", and on Leonardo TMPDIR=/scratch_local is
-        # node-local but world-writable and shared by every user on the node. Any
-        # stale sqlite lock state left there — a -wal/-shm from someone else's
-        # killed process, or a second run of ours on the same node — makes
-        # diskcache.Cache() raise "sqlite3.OperationalError: locking protocol"
-        # on EVERY request, and opencompass still writes a clean-looking summary
-        # of dashes/zeros. That silently destroyed Ministral's rerun (all "-")
-        # and nanbeige's duplicate. Scoping the path to the job id makes the
-        # cache un-shareable, which is all we ever wanted from it.
-        # Built with plain string concatenation on purpose: these compass
-        # files are parsed by mmengine as LAZY configs, where `os` is a
-        # LazyObject. os.environ.build() is fine (build() materialises it and
-        # returns a real dict), but calling os.path.join() on a LazyObject
-        # raises a bare RuntimeError at config-load time and the whole run
-        # dies before it starts — while the driver still prints
-        # "Task Complete".
+        # Job-private cache: the DomynSwarm default ($TMPDIR/opencompass_cache) is
+        # node-local but world-writable, so stale sqlite lock state from any user
+        # makes every request raise "sqlite3.OperationalError: locking protocol"
+        # while opencompass still writes a clean-looking all-dashes summary.
+        # String concatenation is deliberate — these are mmengine LAZY configs,
+        # where os.path.join() on the LazyObject `os` raises at config-load time.
         cache=os.environ.build().get("TMPDIR", "/tmp")
         + "/opencompass_cache_"
         + os.environ.build().get("SLURM_JOB_ID", "local"),

@@ -251,15 +251,9 @@ class MBPPEvaluator(BaseEvaluator):
         if self.metric == 'MBPP':
             result = {'pass': 0, 'timeout': 0, 'failed': 0, 'wrong_answer': 0}
             details = {}
-            # Bound the pool. execution() forks its own multiprocessing.Process
-            # per program and joins with a hard timeout, so an unbounded
-            # ProcessPoolExecutor -- sized to os.cpu_count(), the NODE's core
-            # count (128 on a Leonardo boost node) rather than this job's cgroup
-            # allocation -- launches ~128 workers each forking a child. Process
-            # startup alone then exceeds the budget and correct programs are
-            # recorded as 'failed', load-dependently. The same effect measured on
-            # CRUXEval moved one model's score by 21 points between an unbounded
-            # and an 8-worker pool.
+            # An unbounded pool sizes itself to the NODE's core count, not this
+            # job's cgroup, and each worker forks a child inside execution()'s
+            # timeout -- so correct programs are recorded as 'failed' under load.
             with ProcessPoolExecutor(
                     max_workers=int(os.environ.get('MBPP_SCORE_WORKERS', '8'))
             ) as executor:
