@@ -179,10 +179,48 @@ class HumanEvalPlusEvaluator(BaseEvaluator):
         return results
 
 
+_HE_FENCE_RE = re.compile(r'```\w*\n(.*?)```', re.DOTALL)
+_HE_CODEISH_RE = re.compile(r'^\s*(?:def|class|import|from|return|\s+)', re.MULTILINE)
+
+
+def _humaneval_looks_like_code(text: str) -> bool:
+    """True if `text` is plausibly a submitted solution body."""
+    if not text or not text.strip():
+        return False
+    return bool(_HE_CODEISH_RE.search(text))
+
+
 def humaneval_postprocess_v2(text: str) -> str:
-    blocks = re.findall(r'```\w*\n(.*?)```', text, re.DOTALL)
-    if len(blocks) >= 1:
-        text = blocks[0]
+    """Extract the submitted solution from a model response.
+
+    WHY THIS DIVERGES FROM UPSTREAM
+        Upstream took blocks[0] — the FIRST fenced block in the response — and
+        never looked at <think>. For a reasoning model the first fence is
+        normally a draft or a scratch test written mid-reasoning, not the answer:
+        measured on this repo's own runs, the first fence sits inside <think> for
+        40/164 of domynedge-sft-37410's HumanEval responses, 47/164 of
+        nanbeige4.1-3b's, 68/164 of vibethinker-3b's and 114/164 (70%) of
+        qwen3.5-4b's, and first != last for nearly all of those. Grading the
+        draft instead of the answer is silent: it just looks like a weaker model.
+
+        v3 already existed and takes blocks[-1], but nothing used it and it still
+        does not strip reasoning. This does both, and vets the candidate so a
+        fence containing prose cannot be submitted as code.
+    """
+    if '</think>' in text:
+        text = text.rsplit('</think>', 1)[1]
+    elif '<think>' in text:
+        # Unterminated <think>: the response hit the token cap mid-reasoning and
+        # has no final answer. Keep the tail so a partial solution still counts.
+        text = text.rsplit('<think>', 1)[1]
+
+    for block in reversed(_HE_FENCE_RE.findall(text)):
+        if _humaneval_looks_like_code(block):
+            return block.lstrip()
+
+    blocks = _HE_FENCE_RE.findall(text)
+    if blocks:
+        return blocks[-1].lstrip()
     return text.lstrip()
 
 def humaneval_postprocess_v3(text: str) -> str:

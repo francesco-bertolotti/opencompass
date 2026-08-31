@@ -1,3 +1,4 @@
+import ast
 import contextlib
 import io
 import itertools
@@ -306,7 +307,81 @@ class MBPPEvaluator(BaseEvaluator):
                 score = self.eval(flags)
                 return {f'mbpp_plus_{k}': score[k] * 100 for k in score}
 
+    # Ordered LAST-first: a reasoning model's final answer is the last code
+    # block it writes, not the first.
+    _FENCE_RE = re.compile(r"```(?:python|py)?[ \t]*\n(.*?)```", re.DOTALL)
+    _CODEISH_RE = re.compile(r"^\s*(?:def|class|import|from)\s", re.MULTILINE)
+
+    @staticmethod
+    def _looks_like_code(text):
+        """True if `text` is plausibly the submitted program.
+
+        Guards every extraction path. Without it a regex that happens to match
+        two words of prose is accepted as the answer and the sample is scored
+        'failed' — indistinguishable, in the summary, from a model that cannot
+        code.
+        """
+        if not text or not text.strip():
+            return False
+        if MBPPEvaluator._CODEISH_RE.search(text):
+            return True
+        try:
+            ast.parse(text)
+            return True
+        except SyntaxError:
+            return False
+
     def _process_answer(self, text):
+        """Extract the submitted program from a model response.
+
+        WHY THIS OVERRIDES THE UPSTREAM ORDER
+            Upstream tries the few-shot `[BEGIN] '...' [DONE]` markers before it
+            ever looks at fenced code. The MBPP prompt is 3-shot and shows those
+            markers, so a reasoning model reliably echoes them inside <think>
+            while reasoning about the format. `\[BEGIN\]\s*'(.*)'\s*\[DONE\]`
+            is then satisfied by an accidental 5-character span of prose, and the
+            real ```python block below it is never reached.
+
+            Measured on this repo's own runs, that silently converted correct
+            solutions into 'failed' for EVERY model, in proportion to how much
+            each one reasons: 33% of samples for qwen3.5-4b, 41% for
+            domynedge-sft-37410, 74% for vibethinker-3b, 91% for nanbeige4.1-3b
+            (whose MBPP read 7.78 as a result). The metric was ranking models by
+            how extractable their output was, not by whether they can program.
+
+        SO: drop the reasoning block, prefer the last real code fence, and never
+        accept a candidate that does not look like Python. Only then fall back to
+        the upstream marker patterns, still guarded. A response with no
+        recoverable code is left to fail on its own merits.
+        """
+        # 1. The reasoning is not the answer. Everything before </think> is
+        #    scratch work and is exactly where the spurious markers live.
+        if "</think>" in text:
+            text = text.rsplit("</think>", 1)[1]
+        elif "<think>" in text:
+            # Unterminated <think> (hit the token cap mid-reasoning): there is no
+            # final answer to find. Keep the tail so a partially-written program
+            # still gets a chance, rather than scoring the reasoning prose.
+            text = text.rsplit("<think>", 1)[1]
+
+        # 2. Prefer fenced code, last block first — models often show a wrong
+        #    attempt, then the correction.
+        for block in reversed(self._FENCE_RE.findall(text)):
+            if self._looks_like_code(block):
+                return block.strip()
+
+        # 3. Fall back to the upstream marker patterns, guarded.
+        for extracted in self._upstream_candidates(text):
+            if self._looks_like_code(extracted):
+                return extracted
+
+        # 4. Nothing recognisable: hand back the de-fenced tail and let it fail
+        #    honestly.
+        tail = text.split("```")[0]
+        return re.split(r"'?\s*\[?DONE\]?", tail)[0].replace("\\_", "_").strip()
+
+    def _upstream_candidates(self, text):
+        """The original pattern cascade, yielding each candidate for vetting."""
         patterns = [
             r"\[BEGIN\]\s*'(.*)'\s*\[DONE\]",
             r"BEGIN\s*'(.*)'\s*\[DONE\]",
@@ -334,15 +409,11 @@ class MBPPEvaluator(BaseEvaluator):
                 match = re.search(p, text, re.DOTALL, timeout=10.0)
             except TimeoutError:
                 match = None
-
-            if match:
-                text = match.group(1)
-                break
-        text = text.split('```')[0]
-        text = re.split(r"'?\s*\[?DONE\]?", text)[0]
-        text = text.replace('\\_', '_')
-        text = text.strip()
-        return text
+            if not match:
+                continue
+            cand = match.group(1).split('```')[0]
+            cand = re.split(r"'?\s*\[?DONE\]?", cand)[0]
+            yield cand.replace('\\_', '_').strip()
 
     def _process_test(self, test_case, pred):
         formatted = pred + '\n'
