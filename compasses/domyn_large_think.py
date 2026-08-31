@@ -100,6 +100,13 @@ models = [
             **extra_body,
         },
         max_tokens=int(os.environ.build()["MAX_TOKENS"]),
+        # Job-private cache: the shared default is world-writable and concurrent
+        # jobs die on "sqlite3.OperationalError: locking protocol". String
+        # concatenation is deliberate — these are mmengine LAZY configs, where
+        # os.path.join() on the LazyObject `os` raises at config-load time.
+        cache=os.environ.build().get("TMPDIR", "/tmp")
+        + "/opencompass_cache_"
+        + os.environ.build().get("SLURM_JOB_ID", "local"),
     )
 ]
 
