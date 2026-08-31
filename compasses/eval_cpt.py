@@ -98,6 +98,21 @@ models = [
             **extra_body,
         },
         max_tokens=int(os.environ.build()["MAX_TOKENS"]),
+        # Job-private response cache — see full_think_32k.py for why the
+        # DomynSwarm default ("$TMPDIR/opencompass_cache", node-local but
+        # world-writable on Leonardo) intermittently dies with
+        # "sqlite3.OperationalError: locking protocol" and still emits a
+        # clean-looking all-dashes summary.
+        # Built with plain string concatenation on purpose: these compass
+        # files are parsed by mmengine as LAZY configs, where `os` is a
+        # LazyObject. os.environ.build() is fine (build() materialises it and
+        # returns a real dict), but calling os.path.join() on a LazyObject
+        # raises a bare RuntimeError at config-load time and the whole run
+        # dies before it starts — while the driver still prints
+        # "Task Complete".
+        cache=os.environ.build().get("TMPDIR", "/tmp")
+        + "/opencompass_cache_"
+        + os.environ.build().get("SLURM_JOB_ID", "local"),
     )
 ]
 
