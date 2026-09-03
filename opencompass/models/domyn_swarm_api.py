@@ -1,20 +1,21 @@
-import opencompass
-import diskcache
-import traceback
-import tenacity
-import hashlib
 import asyncio
-import typing
-import openai
+import hashlib
 import json
 import os
-from transformers import AutoTokenizer
-from domyn_swarm import DomynLLMSwarm
+import traceback
+import typing
 
+import diskcache
+import openai
+import tenacity
+from domyn_swarm import DomynLLMSwarm
+from transformers import AutoTokenizer
+
+import opencompass
 from opencompass.registry import MODELS
-from .base_api import BaseAPIModel
 
 from ..utils.logging import get_logger
+from .base_api import BaseAPIModel
 
 logger = get_logger(__name__)
 
@@ -28,7 +29,7 @@ class DomynSwarm(BaseAPIModel):
         model: str | None = None,
         system_prompt: str | None = None,
         temperature: float = 0.0,
-        extra_body: typing.Optional[typing.Dict[str, typing.Any]] = dict(),
+        extra_body: dict[str, typing.Any] | None = None,
         timeout: int = 1200,
         cache: str = os.path.join(
             os.environ.get("TMPDIR", "/tmp"), "opencompass_cache"
@@ -36,6 +37,8 @@ class DomynSwarm(BaseAPIModel):
         max_tokens: int | None = None,
         max_connections: int | None = None,
     ):
+        if extra_body is None:
+            extra_body = {}
         super().__init__(path="", max_seq_len=max_tokens)
         self.system_prompt = system_prompt
         self.swarm_name = swarm_name
@@ -66,15 +69,12 @@ class DomynSwarm(BaseAPIModel):
             self.endpoint = self.endpoint.rstrip("/") + "/v1"
 
         self.cache = cache
-        # Semaphore caps concurrent in-flight requests to the vLLM server.
-        # Prevents head-of-line blocking when long (math/AIME) and short (MMLU)
-        # prompts run together. Reads MAX_CONNECTIONS env var set by the driver.
         _mc = max_connections or int(os.environ.get("MAX_CONNECTIONS", "8"))
         self._sem = asyncio.Semaphore(_mc)
 
         self.client = openai.AsyncOpenAI(
             base_url=f"{self.endpoint}",
-            api_key="-",
+            api_key=os.environ.get("API_KEY") or "-",
             organization="-",
             project="-",
             timeout=timeout,
@@ -82,14 +82,14 @@ class DomynSwarm(BaseAPIModel):
 
     def generate(
         self,
-        prompts: typing.List[typing.Union[opencompass.utils.prompt.PromptList, str]],
+        prompts: list[opencompass.utils.prompt.PromptList | str],
         max_out_len: int = 512,
     ):
         return asyncio.run(self._generate(prompts, max_out_len))
 
     async def _generate(
         self,
-        prompts: typing.List[typing.Union[opencompass.utils.prompt.PromptList, str]],
+        prompts: list[opencompass.utils.prompt.PromptList | str],
         max_out_len: int = 512,
     ) -> list[str]:
 
@@ -182,10 +182,10 @@ class DomynSwarm(BaseAPIModel):
 
         return await asyncio.gather(*[rate_limited(p) for p in prompts])
 
-    def format(self, input: typing.Union[opencompass.utils.prompt.PromptList, str]):
+    def format(self, input: opencompass.utils.prompt.PromptList | str):
         """Format the input into a message structure suitable for the API."""
 
-        assert isinstance(input, typing.Union[opencompass.utils.prompt.PromptList, str])
+        assert isinstance(input, opencompass.utils.prompt.PromptList | str)
 
         system_prompt = (
             [{"role": "system", "content": self.system_prompt}]
