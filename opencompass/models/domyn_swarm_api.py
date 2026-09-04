@@ -115,9 +115,7 @@ class DomynSwarm(BaseAPIModel):
             """Asynchronously complete the prompt using the OpenAI API."""
             try:
                 with diskcache.Cache(self.cache) as cache:
-                    # Shared with every other suite (repo-root token_budget.py), so the
-                    # safety margin and the counters are the same everywhere. The
-                    # context window comes from $TOKEN_BUDGET_ARGS.
+                    # Shared with every other suite
                     max_tokens = await token_budget.resolve_max_tokens_async(
                         {"max_tokens": self.max_tokens or max_out_len},
                         messages=messages,
@@ -130,14 +128,16 @@ class DomynSwarm(BaseAPIModel):
                     request = {
                         "model": self.model,
                         "messages": messages,
-                        "temperature": self.temperature,
                         "extra_body": self.extra_body,
                         "max_tokens": max_tokens,
                     }
+                    # Unset means "not configured"
+                    if self.temperature is not None:
+                        request["temperature"] = self.temperature
                     if _debug:
                         print(
                             f"[debug] Full request: model={request['model']}  "
-                            f"temperature={request['temperature']}  "
+                            f"temperature={request.get('temperature', 'unset')}  "
                             f"max_tokens={request['max_tokens']}  "
                             f"extra_body={json.dumps(request['extra_body'], indent=2)}"
                         )

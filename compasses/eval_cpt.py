@@ -1,45 +1,23 @@
 import os
 
-from mmengine.config import read_base
+from mmengine.config import read_base  # type: ignore
 
 with read_base():
-    # from opencompass.configs.datasets.math.math_500_gen import math_datasets
-    # from opencompass.configs.datasets.aime2024.aime2024_gen import aime2024_datasets
     from opencompass.configs.datasets.aime2025.aime2025_cascade_eval_gen_5e9f4f import (
         aime2025_datasets,
     )
     from opencompass.configs.datasets.mmlu.mmlu_gen import mmlu_datasets
-
-    # from opencompass.configs.datasets.gpqa.gpqa_gen import gpqa_datasets
-    # from opencompass.configs.datasets.gsm8k.gsm8k_gen import gsm8k_datasets
-    # from opencompass.configs.datasets.drop.drop_gen import drop_datasets
-    # from opencompass.configs.datasets.humaneval.humaneval_gen import humaneval_datasets
-    # from opencompass.configs.datasets.babilong.babilong_4k_gen import (
-    #     babiLong_4k_datasets,
-    # )
-    # from opencompass.configs.datasets.IFEval.IFEval_gen import ifeval_datasets
-    # from opencompass.configs.datasets.livecodebench.livecodebench_gen import (
-    #     LCB_datasets,
-    # )
-    # from opencompass.configs.datasets.mbpp.mbpp_gen import mbpp_datasets
-    # from opencompass.configs.datasets.mgsm.mgsm_gen import mgsm_datasets
-    # from opencompass.configs.datasets.mmlu_pro.mmlu_pro_gen import mmlu_pro_datasets
-    # from opencompass.configs.datasets.summedits.summedits_gen import summedits_datasets
     from opencompass.configs.datasets.mmmlu_lite.mmmlu_lite_gen import (
         mmmlu_lite_datasets,
     )
-    # from opencompass.configs.datasets.ruler.ruler_16k_gen import (
-    #     ruler_datasets as ruler_16k_datasets,
-    # )
-
     from opencompass.configs.summarizers.groups.mmlu import mmlu_summary_groups
     from opencompass.configs.summarizers.groups.mmlu_pro import mmlu_pro_summary_groups
     from opencompass.configs.summarizers.groups.ruler import ruler_summary_groups
 
 # aime2025 disable llm as a judge
-aime2025_datasets[0].eval_cfg.evaluator = dict(  # type: ignore
-    type="opencompass.evaluator.MATHVerifyEvaluator"
-)
+aime2025_datasets[0].eval_cfg.evaluator = {  # type: ignore
+    "type": "opencompass.evaluator.MATHVerifyEvaluator"
+}
 
 datasets = [
     # *aime2024_datasets,
@@ -76,62 +54,66 @@ extra_body = (
     else {}
 )
 
+_env = os.environ.build()
+_sampling_raw = {
+    "top_p": _env["TOP_P"],
+    "top_k": _env["TOP_K"],
+    "min_p": _env["MIN_P"],
+    "presence_penalty": _env["PRESENCE_PENALTY"],
+    "repetition_penalty": _env["REPETITION_PENALTY"],
+    "frequency_penalty": _env["FREQUENCY_PENALTY"],
+}
+sampling_params = {
+    key: (int(value) if key == "top_k" else float(value))
+    for key, value in _sampling_raw.items()
+    if value not in ("", "None")
+}
+temperature = (
+    None if _env["TEMPERATURE"] in ("", "None") else float(_env["TEMPERATURE"])
+)
+
 models = [
-    dict(
-        type="opencompass.models.domyn_swarm_api.DomynSwarm",
-        abbr=os.environ.build()["MODEL_ABBR"],
-        batch_size=int(os.environ.build()["BATCH_SIZE"]),
-        system_prompt="",
-        swarm_name=os.environ.build()["SWARM_NAME"],
-        model=os.environ.build()["MODEL_PATH"],
-        endpoint=os.environ.build()["ENDPOINT"],
-        temperature=float(os.environ.build()["TEMPERATURE"]),
-        extra_body={
-            **dict(
-                top_p=float(os.environ.build()["TOP_P"]),
-                top_k=int(os.environ.build()["TOP_K"]),
-                min_p=float(os.environ.build()["MIN_P"]),
-                presence_penalty=float(os.environ.build()["PRESENCE_PENALTY"]),
-                repetition_penalty=float(os.environ.build()["REPETITION_PENALTY"]),
-                frequency_penalty=float(os.environ.build()["FREQUENCY_PENALTY"]),
-            ),
-            **extra_body,
-        },
-        max_tokens=int(os.environ.build()["MAX_TOKENS"]),
-        # Job-private cache: the shared default is world-writable and concurrent
-        # jobs die on "sqlite3.OperationalError: locking protocol". String
-        # concatenation is deliberate — these are mmengine LAZY configs, where
-        # os.path.join() on the LazyObject `os` raises at config-load time.
-        cache=os.environ.build().get("TMPDIR", "/tmp")
+    {
+        "type": "opencompass.models.domyn_swarm_api.DomynSwarm",
+        "abbr": os.environ.build()["MODEL_ABBR"],
+        "batch_size": int(os.environ.build()["BATCH_SIZE"]),
+        "system_prompt": "",
+        "swarm_name": os.environ.build()["SWARM_NAME"],
+        "model": os.environ.build()["MODEL_PATH"],
+        "endpoint": os.environ.build()["ENDPOINT"],
+        "temperature": temperature,
+        "extra_body": {**sampling_params, **extra_body},
+        "max_tokens": int(os.environ.build()["MAX_TOKENS"]),
+        "cache": os.environ.build().get("TMPDIR", "/tmp")
         + "/opencompass_cache_"
         + os.environ.build().get("SLURM_JOB_ID", "local"),
-    )
+    }
 ]
 
-infer = dict(
-    partitioner=dict(
-        type="opencompass.partitioners.NaivePartitioner",
-    ),
-    runner=dict(
-        type="opencompass.runners.LocalRunner",
-        task=dict(type="opencompass.tasks.openicl_infer.OpenICLInferTask"),
-        max_num_workers=int(os.environ.build()["INFER_MAX_NUM_WORKERS"]),
-    ),
-)
+infer = {
+    "partitioner": {
+        "type": "opencompass.partitioners.NaivePartitioner",
+    },
+    "runner": {
+        "type": "opencompass.runners.LocalRunner",
+        "task": {"type": "opencompass.tasks.openicl_infer.OpenICLInferTask"},
+        "max_num_workers": int(os.environ.build()["INFER_MAX_NUM_WORKERS"]),
+    },
+}
 
-eval = dict(
-    partitioner=dict(
-        type="opencompass.partitioners.NaivePartitioner",
-    ),
-    runner=dict(
-        type="opencompass.runners.LocalRunner",
-        task=dict(type="opencompass.tasks.openicl_eval.OpenICLEvalTask"),
-        max_num_workers=int(os.environ.build()["EVAL_MAX_NUM_WORKERS"]),
-    ),
-)
+eval = {
+    "partitioner": {
+        "type": "opencompass.partitioners.NaivePartitioner",
+    },
+    "runner": {
+        "type": "opencompass.runners.LocalRunner",
+        "task": {"type": "opencompass.tasks.openicl_eval.OpenICLEvalTask"},
+        "max_num_workers": int(os.environ.build()["EVAL_MAX_NUM_WORKERS"]),
+    },
+}
 
-summarizer = dict(
-    dataset_abbrs=[
+summarizer = {
+    "dataset_abbrs": [
         "aime2024",
         "aime2025",
         "GPQA_diamond",
@@ -288,7 +270,7 @@ summarizer = dict(
         "ruler_qa_hotpotqa_16k",
         "ruler_16k",
     ],
-    summary_groups=[
+    "summary_groups": [
         *mmlu_summary_groups,
         *mmlu_pro_summary_groups,
         {
@@ -313,4 +295,4 @@ summarizer = dict(
         },
         ruler_summary_groups[2],  # 16k
     ],
-)
+}
