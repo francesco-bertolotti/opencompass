@@ -2,19 +2,25 @@ import asyncio
 import hashlib
 import json
 import os
+import sys
 import traceback
 import typing
 
-import diskcache
+import diskcache  # type: ignore
 import openai
 import tenacity
 from domyn_swarm import DomynLLMSwarm
-from transformers import AutoTokenizer
 
 import opencompass
 from opencompass.registry import MODELS
 
 from ..utils.logging import get_logger
+
+sys.path.append(
+    os.environ.get("ROOT") or os.path.abspath(__file__).split("/suites/")[0]
+)
+import token_budget
+
 from .base_api import BaseAPIModel
 
 logger = get_logger(__name__)
@@ -45,15 +51,11 @@ class DomynSwarm(BaseAPIModel):
         self.temperature = temperature
         self.extra_body = extra_body
         self.max_tokens = max_tokens
-        tokenizer_model = os.environ.get("TOKENIZER_MODEL")
-        self.tokenizer = (
-            AutoTokenizer.from_pretrained(tokenizer_model) if tokenizer_model else None
-        )
         try:
             swarm = DomynLLMSwarm.from_state(self.swarm_name)
             self.endpoint = swarm.endpoint
             self.model = swarm.model
-        except Exception:
+        except Exception:  # noqa: BLE001
             logger.error(
                 f"Failed to initialize DomynSwarm with name {self.swarm_name}, trying to use provided endpoint {endpoint} and model {model}."
             )
@@ -63,6 +65,9 @@ class DomynSwarm(BaseAPIModel):
                 raise ValueError(
                     "Either swarm initialization must succeed or both endpoint and model must be provided."
                 )
+        assert isinstance(self.endpoint, str) and isinstance(self.model, str), (
+            "Endpoint and model must be strings."
+        )
         if self.endpoint.endswith("v1/v1"):
             self.endpoint = self.endpoint.replace("/v1", "", 1)
         if not self.endpoint.endswith("/v1"):
@@ -82,14 +87,14 @@ class DomynSwarm(BaseAPIModel):
 
     def generate(
         self,
-        prompts: list[opencompass.utils.prompt.PromptList | str],
+        prompts: list[opencompass.utils.prompt.PromptList | str],  # type: ignore
         max_out_len: int = 512,
     ):
         return asyncio.run(self._generate(prompts, max_out_len))
 
     async def _generate(
         self,
-        prompts: list[opencompass.utils.prompt.PromptList | str],
+        prompts: list[opencompass.utils.prompt.PromptList | str],  # type: ignore
         max_out_len: int = 512,
     ) -> list[str]:
 
@@ -110,37 +115,24 @@ class DomynSwarm(BaseAPIModel):
             """Asynchronously complete the prompt using the OpenAI API."""
             try:
                 with diskcache.Cache(self.cache) as cache:
-                    if self.tokenizer is not None:
-                        formatted = self.tokenizer.apply_chat_template(
-                            messages, tokenize=False, add_generation_prompt=True
-                        )
-                        prompt_tokens = len(
-                            self.tokenizer.encode(formatted, add_special_tokens=False)
-                        )
-                        if _debug:
-                            print(f"[debug] Formatted prompt:\n{formatted}")
-                    else:
-                        prompt_tokens = (
-                            sum(len(m.get("content", "")) for m in messages) // 4
-                        )
-                    available_tokens = max(
-                        1, (self.max_seq_len or 32768) - prompt_tokens - 1
+                    # Shared with every other suite (repo-root token_budget.py), so the
+                    # safety margin and the counters are the same everywhere. The
+                    # context window comes from $TOKEN_BUDGET_ARGS.
+                    max_tokens = await token_budget.resolve_max_tokens_async(
+                        {"max_tokens": self.max_tokens or max_out_len},
+                        messages=messages,
                     )
                     if _debug:
                         print(
                             f"[debug] Messages sent to model:\n{json.dumps(messages, indent=2, ensure_ascii=False)}"
                         )
-                        print(
-                            f"[debug] Prompt has approx {prompt_tokens} tokens. Available for response: {available_tokens}."
-                        )
+                        print(f"[debug] Budgeted max_tokens: {max_tokens}.")
                     request = {
                         "model": self.model,
                         "messages": messages,
                         "temperature": self.temperature,
                         "extra_body": self.extra_body,
-                        "max_tokens": min(
-                            self.max_tokens or max_out_len, available_tokens
-                        ),
+                        "max_tokens": max_tokens,
                     }
                     if _debug:
                         print(
