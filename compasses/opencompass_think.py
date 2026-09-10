@@ -8,11 +8,13 @@ with read_base():
         LCB_datasets,
     )
     from opencompass.configs.datasets.mbpp.mbpp_gen import mbpp_datasets
+    from opencompass.configs.datasets.math.math_500_gen import math_datasets
 
 datasets = [
     *humaneval_datasets,
     *LCB_datasets,
     *mbpp_datasets,
+    *math_datasets,
 ]
 
 _env = os.environ.build() # type: ignore
@@ -90,4 +92,19 @@ eval = {
         "task": {"type": "opencompass.tasks.openicl_eval.OpenICLEvalTask"},
         "max_num_workers": int(_env["EVAL_MAX_NUM_WORKERS"]),
     },
+}
+
+summarizer = {
+    "dataset_abbrs": [
+        ["mbpp", "score"],
+        ["mbpp", "pass"],
+        ["mbpp", "timeout"],
+        ["mbpp", "failed"],
+        ["mbpp", "wrong_answer"],
+        "openai_humaneval",
+        "math-500",
+        "lcb_code_generation",
+        "lcb_code_execution",
+        "lcb_test_output",
+    ],
 }
